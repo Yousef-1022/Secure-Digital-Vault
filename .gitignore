@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment-related
+venv/
+requirements.txt
+
+# Custom Scripts
+run_venv.ps1
