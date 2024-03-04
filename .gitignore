@@ -5,7 +5,9 @@ __pycache__/
 
 # Environment-related
 venv/
-requirements.txt
 
 # Custom Scripts
 run_venv.ps1
+
+# Extra Files
+info.txt
