@@ -1,0 +1,60 @@
+{
+    "vault" : {
+        "vault_name" : "name_placeholder",
+        "vault_size" : 2048,
+        "header_size" : 512,
+        "trusted_timestamp" : 1710070050,
+        "amount_of_files" : 69,
+        "is_vault_encrypted" : true,
+        "is_extension_valid" : true
+    },
+
+    "map" : {
+
+        "file_ids" : [1,2],
+        "directory_ids" : [1,2],
+        "voice_note_ids" : [1,2],
+
+        "directories" : [
+            {
+                "directory": {
+                    "id" : 1,
+                    "name" : "dir_name",
+                    "path" : "/",
+                    "files" : [1,2,3,4,5]
+                }
+            }
+        ],
+
+        "files" : [
+            {
+                "file" : {
+                    "id" : 1,
+                    "size" : 1024,
+                    "loc_start" : 1000,
+                    "loc_end" : 1024,
+                    "checksum" : "0x6cdaf9dd",
+                    "file_encrypted" : false,
+                    "path" : "/",
+                    "metadata" : {
+                        "name" : "file_name",
+                        "type" : ".txt",
+                        "data_created" : 1710070055,
+                        "last_modified" : 1710070069,
+                        "voice_note_id" : 1
+                    }
+                }
+            }
+        ],
+
+        "voice_notes" : [
+            {
+                "id" : 1,
+                "owned_by_file" : 1,
+                "loc_start" : 1030,
+                "loc_end" : 1031,
+                "checksum" : "0x6cdaf9x"
+            }
+        ]
+    }
+}
