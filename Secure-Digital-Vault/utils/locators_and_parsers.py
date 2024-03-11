@@ -46,5 +46,6 @@ def parse_json_safely(obj:bytes, bgn_magic_len:int , end_magic_len:int) -> dict:
     try:
         parsed_json = json.loads(obj)
         return parsed_json
-    except (json.JSONDecodeError, TypeError, ValueError) as e:
-        return {"error": str(e), "json": obj}
+    except (json.JSONDecodeError, TypeError, ValueError, Exception) as e:
+        msg = f"ExceptionType: {type(e).__name__}. Message: {str(e)}"
+        return {"error": msg, "json": obj}

@@ -34,5 +34,5 @@ class Logger:
                 else:
                     self.__log_session.add_normal_log(log_message)
         except Exception as e:
-            msg = f"{log_message}-FAILED_LOCK:{e.message}"
+            msg = f"{log_message} - FAILED_LOCK_ACQUISITION_EXCEPTION: {type(e).__name__} with message: {str(e)}"
             self.__log_session.add_error_log(msg)
