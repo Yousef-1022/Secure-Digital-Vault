@@ -3,6 +3,8 @@
         "vault_name" : "name_placeholder",
         "vault_size" : 2048,
         "header_size" : 512,
+        "footer_size" : 256,
+        "file_size" : 2816,
         "trusted_timestamp" : 1710070050,
         "amount_of_files" : 69,
         "is_vault_encrypted" : true,
