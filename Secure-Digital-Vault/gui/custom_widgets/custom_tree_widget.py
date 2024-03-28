@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QWidget, QFileIconProvider, QStyle
 from PyQt6.QtCore import QDir, QFileInfo, Qt , pyqtSignal
 from PyQt6.QtGui import QMouseEvent , QKeyEvent
-from utils.locators_and_parsers import parse_size_to_string
+from utils.locators_and_parsers import parse_size_to_string, get_available_drives
 
 class CustomTreeWidget(QTreeWidget):
     """
@@ -38,8 +38,11 @@ class CustomTreeWidget(QTreeWidget):
         Args:
             path (str): The path of the directory to populate.
         """
+        if not path:
+            return
         directory = QDir(path)
-        if not directory.exists():
+        drive = path[0] + ":\\" # Edge case when drive is only selected, first letter is taken
+        if not directory.exists() or (drive not in get_available_drives()) or (len(path) < 3):
             return
         self.current_path = path
         self.clear()

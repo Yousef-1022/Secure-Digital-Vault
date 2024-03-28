@@ -59,9 +59,14 @@ class VaultSearchWindow(QMainWindow):
         self.treeWidgetAddressBarButton = CustomButton("Insert", QIcon(ICON_2), "Confirm the path to navigate", self.centralwidget)
         self.treeWidgetAddressBarButton.set_action(lambda : self.on_insert_button_clicked(self.treeWidgetAddressBar.text()))
         self.driveDropdown = CustomDropdown(self.centralwidget)
-        self.driveDropdown.currentIndexChanged.connect(lambda: self.treeWidget.populate(self.driveDropdown.currentText()))
         self.treeWidgetUpperVerticalLayout2.addWidget(self.treeWidgetAddressBarButton)
         self.treeWidgetUpperVerticalLayout2.addWidget(self.driveDropdown)
+
+        def driveDropdownModifyLocation():
+            drive = self.driveDropdown.currentText()
+            self.treeWidget.populate(drive)
+            self.treeWidgetAddressBar.setText(drive)
+        self.driveDropdown.currentIndexChanged.connect(lambda: driveDropdownModifyLocation())
 
         # Tree widget -> vertical_div
         self.treeWidget = CustomTreeWidget(4, self.centralwidget)
@@ -143,6 +148,15 @@ class VaultSearchWindow(QMainWindow):
         Args:
             vault_extension (str): vault_extension aka .vault
         """
+        checked_extension = vault_extension.replace(" ", "")
+        extension = checked_extension[checked_extension.rfind('.'):]
+        if not "." in checked_extension or len(extension) < 2:
+            message_box = CustomMessageBox(parent=self)
+            message_box.setIcon(QMessageBox.Icon.Critical)
+            message_box.setWindowTitle("Vault extension")
+            message_box.showMessage("The extension of the vault is invalid!")
+            return
+
         for t in self.threads:
             if(t.handled_function == "detect_vault" and not t.timer_finished):
                 self.logger.info(f"{t} is Already running with {t.handled_function}")
@@ -186,7 +200,7 @@ class VaultSearchWindow(QMainWindow):
         """
         password = self.passwordLineEdit.get_passwordLine().text()
         vault_loc = self.vaultLocationLine.text()
-        vault_extension = self.vaultExtensionLine.text()
+        vault_extension = self.vaultExtensionLine.text().replace(" ", "")
 
         message_box = CustomMessageBox(parent=self)
         if not password:
@@ -222,6 +236,8 @@ class VaultSearchWindow(QMainWindow):
         Args:
             path (str): Path given by the user
         """
+        if not path:
+            return
         self.treeWidgetAddressBar.setText(path)
         drive = path[0] + ":\\" # Edge case when drive is only selected, first letter is taken
         for i in range(self.driveDropdown.count()):
