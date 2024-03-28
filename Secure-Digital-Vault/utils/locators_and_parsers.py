@@ -4,7 +4,7 @@ locators_and_parsers.py
 Defines location handling functions and parsing functions
 """
 
-import json
+import json, os, string
 
 def get_file_from_vault(vault_path:str, starting_byte:int , ending_byte: int, chunk_size_to_read:int=4096):
     """Efficiently gets raw bytes from vault location on machine
@@ -49,3 +49,63 @@ def parse_json_safely(obj:bytes, bgn_magic_len:int , end_magic_len:int) -> dict:
     except (json.JSONDecodeError, TypeError, ValueError, Exception) as e:
         msg = f"ExceptionType: {type(e).__name__}. Message: {str(e)}"
         return {"error": msg, "json": obj}
+
+def parse_size_to_string(amount_bytes: int) -> str:
+    """
+    Convert the given amount of bytes to a human-readable string representing the size.
+
+    Args:
+        amount_bytes (int): The amount of bytes.
+
+    Returns:
+        str: A string representing the size.
+    """
+    suffixes = ['B', 'KB', 'MB', 'GB', 'TB']
+    index = 0
+    while amount_bytes >= 1024 and index < len(suffixes) - 1:
+        amount_bytes /= 1024.0
+        index += 1
+    return '{:.2f} {}'.format(amount_bytes, suffixes[index])
+
+def parse_from_string_to_size(size_instr: str) -> int:
+    """
+    Convert the given string representing a size to an integer amount of bytes.
+
+    Args:
+        size_instr (str): The string representing the size.
+
+    Returns:
+        int: The amount of bytes.
+    """
+    size_instr = size_instr.strip().upper()
+    suffixes = {
+        'B': 1,
+        'KB': 1024,
+        'MB': 1024 ** 2,
+        'GB': 1024 ** 3,
+        'TB': 1024 ** 4
+    }
+    for suffix, factor in suffixes.items():
+        if size_instr.endswith(suffix):
+            size_value = size_instr[:-len(suffix)].strip()
+            try:
+                return int(float(size_value) * factor)
+            except ValueError as e:
+                print(e)
+                return -1  # Unable to parse
+    return -1  # Unknown suffix
+
+
+def get_available_drives() -> list[str]:
+    """Returns a list of available drives in the system.
+
+    Returns:
+        list: A list of available drives with backslash, e.g., ['C:\\\\', 'D:\\\\', 'E:\\\\'].
+    """
+    drives = []
+    if os.name == 'nt':  # For Windows
+        for letter in string.ascii_uppercase:
+            drive = letter + ':\\'
+            if os.path.exists(drive):
+                drives.append(drive)
+    return drives

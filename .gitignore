@@ -8,6 +8,7 @@ venv/
 
 # Custom Scripts
 run_venv.ps1
+run_designer.ps1
 
 # Extra Files
 info.txt

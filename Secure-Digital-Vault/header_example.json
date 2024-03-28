@@ -8,7 +8,7 @@
         "trusted_timestamp" : 1710070050,
         "amount_of_files" : 69,
         "is_vault_encrypted" : true,
-        "is_extension_valid" : true
+        "vault_extension" : ".vault"
     },
 
     "map" : {
