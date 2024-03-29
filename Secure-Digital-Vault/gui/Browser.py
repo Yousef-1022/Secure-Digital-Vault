@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, 
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7
+from utils.validators import is_proper_extension
 from logger.logging import Logger
 
 from gui.custom_widgets.custom_tree_widget import CustomTreeWidget
@@ -33,7 +34,7 @@ class VaultSearchWindow(QMainWindow):
         self.vertical_div = QVBoxLayout(self.centralwidget)
 
         # Tree Widget upper horziontal layout (Address bar, Insert button, Drive choice)
-        currentAddress = os.getcwd()
+        currentAddress = os.getcwd().replace("\\","/")
         self.treeWidgetUpperHorziontalLayout = QHBoxLayout()
         self.treeWidgetUpperHorziontalSubLayout1 = QHBoxLayout() # (Extension , Detect Button)
         self.treeWidgetUpperVerticalLayout1 = QVBoxLayout()   # Address , (Extension , Detect Button)
@@ -118,17 +119,17 @@ class VaultSearchWindow(QMainWindow):
 
 
     # Button click handlers
-    def detect_vault(self, vault_ending: str, cwd : str) -> str:
+    def detect_vault(self, vault_extension: str, cwd : str) -> str:
         """Searches for the vault in the given directory
 
         Args:
-            vault_ending (str): Vault extension
+            vault_extension (str): Vault extension
             cwd (str): Current Working Directory
 
         Returns:
             str: Location of the vault, None if not available
         """
-        if not vault_ending:
+        if not is_proper_extension(vault_extension):
             return None
         if(not cwd):
             current_directory = os.getcwd()
@@ -136,7 +137,7 @@ class VaultSearchWindow(QMainWindow):
             current_directory = cwd
         for root, dirs, files in os.walk(current_directory):
             for file in files:
-                if file.endswith(vault_ending):
+                if file.endswith(vault_extension):
                     return (os.path.join(root, file))
         return None
 
@@ -148,15 +149,13 @@ class VaultSearchWindow(QMainWindow):
         Args:
             vault_extension (str): vault_extension aka .vault
         """
-        checked_extension = vault_extension.replace(" ", "")
-        extension = checked_extension[checked_extension.rfind('.'):]
-        if not "." in checked_extension or len(extension) < 2:
+        extension = vault_extension.replace(" ", "")
+        if not is_proper_extension(extension):
             message_box = CustomMessageBox(parent=self)
             message_box.setIcon(QMessageBox.Icon.Critical)
             message_box.setWindowTitle("Vault extension")
-            message_box.showMessage("The extension of the vault is invalid!")
+            message_box.showMessage(f"The extension: '{extension}' of the vault is invalid!")
             return
-
         for t in self.threads:
             if(t.handled_function == "detect_vault" and not t.timer_finished):
                 self.logger.info(f"{t} is Already running with {t.handled_function}")
@@ -211,23 +210,18 @@ class VaultSearchWindow(QMainWindow):
             message_box.setIcon(QMessageBox.Icon.Warning)
             message_box.setWindowTitle("Unknown vault location")
             message_box.showMessage("No vault location has been chosen!")
-        elif not vault_extension:
+        elif not is_proper_extension(vault_extension):
             message_box.setIcon(QMessageBox.Icon.Warning)
-            message_box.setWindowTitle("Empty vault extension")
-            message_box.showMessage("The extension of the vault must be given!")
-        elif not vault_loc[vault_loc.rfind('.'):]:
-            message_box.setIcon(QMessageBox.Icon.Critical)
-            message_box.setWindowTitle("Vault extension")
-            message_box.showMessage("The extension of the vault is invalid!")
+            message_box.setWindowTitle("Vault Extension")
+            message_box.showMessage("The extension of the vault is not correct!")
         elif not vault_extension == vault_loc[vault_loc.rfind('.'):]:
             message_box.setIcon(QMessageBox.Icon.Critical)
-            message_box.setWindowTitle("Vault extension")
-            message_box.showMessage("The extension of the vault does not correspond to the extension of the given file!")
+            message_box.setWindowTitle("Vault Extension")
+            message_box.showMessage(f"The extension of the vault: '{vault_extension}' does not correspond to the extension of the given file '{vault_loc}'!")
         else:
             # Do import logic here _ PLACEHOLDER
-            print("Password:", password)
-            print("Vault location:", vault_loc)
-            print("Extension:",vault_extension)
+            print(f"Password: {password} - Vault location: {vault_loc} - Extension: {vault_extension}")
+            # Add the progress bar, check why the vault_loc shows in a weird way rather than properly with the slashes
 
     # Button insert handle results
     def on_insert_button_clicked(self, path : str) -> None:
