@@ -4,22 +4,21 @@ from PyQt6.QtCore import Qt
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
 
 class CustomButton(QPushButton):
-    def __init__(self, label: str, icon: QIcon, info_text: str, parent: QWidget = None):
+    def __init__(self, label: str, icon: QIcon, context_box_text: str, parent: QWidget = None):
         """
         CustomButton constructor.
 
         Parameters:
             label (str): The label text for the button.
             icon_path (str): The file path to the button icon.
-            info_text (str): The text to display in the information box.
+            context_box_text (str): The text to display in the menu context box.
             parent (QWidget): The parent widget. Defaults to None.
         """
         super().__init__(parent)
         self.setIcon(icon)
         self.setText(label)
         self.button_label = label
-        self.info_text = info_text
-        self.actual_parent = parent
+        self.context_box_text = context_box_text
         self.custom_message_box = None
         self.action_function = None
 
@@ -66,7 +65,7 @@ class CustomButton(QPushButton):
         Show details in a custom message box when the button is right-clicked.
         """
         if (not self.custom_message_box):
-            self.custom_message_box = CustomMessageBox(title=f"{self.button_label} Button Details", message=self.info_text, icon=self.icon(), parent=self.actual_parent)
+            self.custom_message_box = CustomMessageBox(title=f"{self.button_label} Button Details", message=self.context_box_text, icon=self.icon(), parent=self)
         if(not self.custom_message_box.isVisible()):
             self.custom_message_box.show()
 
@@ -74,6 +73,6 @@ class CustomButton(QPushButton):
         """
         Exit function to close the custom message box if open.
         """
-        for obj in self.actual_parent.children():
+        for obj in self.children():
             if(self.custom_message_box and obj==self.custom_message_box):
                 self.custom_message_box.exit()

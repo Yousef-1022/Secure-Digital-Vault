@@ -11,6 +11,7 @@ from gui.custom_widgets.custom_dropdown import CustomDropdown
 from gui.custom_widgets.custom_line import CustomLine
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
 from gui.custom_widgets.custom_line_password import CustomPasswordLineEdit
+from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.threads.custom_thread import Worker, CustomThread
 
 import os
@@ -25,7 +26,9 @@ class VaultSearchWindow(QMainWindow):
         self.setObjectName("VaultSearchWindow")
         self.setWindowTitle("Vault Search Window")
         self.setWindowIcon(QIcon(ICON_6))
-        self.resize(800, 600)
+        self.setMinimumWidth(800)
+        self.setMinimumHeight(600)
+        self.resize(1024, 768)
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
@@ -50,7 +53,9 @@ class VaultSearchWindow(QMainWindow):
         # (Extension , Detect Button) = treeWidgetUpperHorziontalSubLayout1 -> treeWidgetUpperVerticalLayout1
         self.vaultExtensionLine = CustomLine(self.centralwidget)
         self.vaultExtensionLine.setPlaceholderText("Vault extension, e.g., .vault")
-        self.detectVaultButton = CustomButton("Detect", QIcon(ICON_1), "Detect vault in currently viewed directory", self.centralwidget)
+        self.detectVaultButton = CustomButton("Detect", QIcon(ICON_1),
+                                              "Detects vault in recently viewed directory and inserts it into vault location line",
+                                              self.centralwidget)
         self.detectVaultButton.set_action(lambda : self.on_detect_button_clicked(self.vaultExtensionLine.text()))
         self.treeWidgetUpperHorziontalSubLayout1.addWidget(self.vaultExtensionLine)
         self.treeWidgetUpperHorziontalSubLayout1.addWidget(self.detectVaultButton)
@@ -77,8 +82,10 @@ class VaultSearchWindow(QMainWindow):
         # Merge Upper Layout with middle Part
         self.treeWidgetUpperHorziontalLayout.addLayout(self.treeWidgetUpperVerticalLayout1)
         self.treeWidgetUpperHorziontalLayout.addLayout(self.treeWidgetUpperVerticalLayout2)
+        self.detectVaultButtonProgressBar = CustomProgressBar(is_visible_at_start=False, parent=self.centralwidget)
 
         self.vertical_div.addLayout(self.treeWidgetUpperHorziontalLayout)
+        self.vertical_div.addWidget(self.detectVaultButtonProgressBar)
         self.vertical_div.addWidget(self.treeWidget)
 
         # Bottom Part of the vault
@@ -96,7 +103,8 @@ class VaultSearchWindow(QMainWindow):
         # Vault Location line edit , Import Button
         self.vaultLocationLine = CustomLine(self.centralwidget)
         self.vaultLocationLine.setPlaceholderText("Vault location")
-        self.importVaultButton = CustomButton("Import", QIcon(ICON_4), "Click to import vault once the password and file location are filled", self.centralwidget)
+        self.importVaultButton = CustomButton("Import", QIcon(ICON_4), "Click to import vault once the password and file location are filled",
+                                              self.centralwidget)
         self.importVaultButton.set_action(self.on_import_button_clicked)
         self.treeWidgetBottomHorziontalSubLayout2.addWidget(self.vaultLocationLine)
         self.treeWidgetBottomHorziontalSubLayout2.addWidget(self.importVaultButton)
@@ -141,7 +149,7 @@ class VaultSearchWindow(QMainWindow):
                     return (os.path.join(root, file))
         return None
 
-
+    # Button detect handle results
     def on_detect_button_clicked(self, vault_extension: str) -> None:
         """Attempts to find the given vault_extension in the displayed working dir with a seperate thread.
         Updates vaultLocationLine with `Not Found` or the vault location
@@ -152,7 +160,7 @@ class VaultSearchWindow(QMainWindow):
         extension = vault_extension.replace(" ", "")
         if not is_proper_extension(extension):
             message_box = CustomMessageBox(parent=self)
-            message_box.setIcon(QMessageBox.Icon.Critical)
+            message_box.setIcon(QMessageBox.Icon.Warning)
             message_box.setWindowTitle("Vault extension")
             message_box.showMessage(f"The extension: '{extension}' of the vault is invalid!")
             return
@@ -161,7 +169,7 @@ class VaultSearchWindow(QMainWindow):
                 self.logger.info(f"{t} is Already running with {t.handled_function}")
                 return
 
-        self.mythread = CustomThread(15 , self.detect_vault.__name__)
+        self.mythread = CustomThread(10 , self.detect_vault.__name__)
         self.threads.append(self.mythread)
         self.worker = Worker(self.detect_vault, vault_extension, self.treeWidget.current_path)
 
@@ -173,9 +181,20 @@ class VaultSearchWindow(QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER
 
+        # Progress functions
         def update_detected_file(emitted_obj : object) -> None:
             self.vaultLocationLine.setText(str(emitted_obj))
 
+        def update_detected_button_progress(emitted_num : int) -> None:
+            if emitted_num == 100 or self.detectVaultButtonProgressBar.value() == 100:
+                self.detectVaultButtonProgressBar.stop_progress()
+                return
+            if self.detectVaultButtonProgressBar.value() == 0:
+                self.detectVaultButtonProgressBar.setVisible(True)
+            current_value = self.detectVaultButtonProgressBar.value()
+            self.detectVaultButtonProgressBar.setValue(emitted_num + current_value)
+
+        self.mythread.progress.connect(update_detected_button_progress)
         self.mythread.timeout_signal.connect(update_detected_file)
         self.mythread.finished.connect(self.mythread.quit)
         #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER
@@ -217,11 +236,10 @@ class VaultSearchWindow(QMainWindow):
         elif not vault_extension == vault_loc[vault_loc.rfind('.'):]:
             message_box.setIcon(QMessageBox.Icon.Critical)
             message_box.setWindowTitle("Vault Extension")
-            message_box.showMessage(f"The extension of the vault: '{vault_extension}' does not correspond to the extension of the given file '{vault_loc}'!")
+            message_box.showMessage(f"The extension of the vault: '{vault_extension}' does not correspond to the extension of '{vault_loc}'!")
         else:
             # Do import logic here _ PLACEHOLDER
             print(f"Password: {password} - Vault location: {vault_loc} - Extension: {vault_extension}")
-            # Add the progress bar, check why the vault_loc shows in a weird way rather than properly with the slashes
 
     # Button insert handle results
     def on_insert_button_clicked(self, path : str) -> None:

@@ -39,18 +39,30 @@ class CustomThread(QThread):
 
         self.timer_finished = False
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.handle_timeout)
-        self.timer.start(self.timeout)
+        self.timer.singleShot(self.timeout,self.handle_timeout)
+        self.timer.timeout.connect(self.update_progress)
+        self.timer.start(allowed_runtime*10)   # Used for emitting a progress signal every ~100ms
+
+
+    def update_progress(self) -> None:
+        """Emits a progress signal with the value 1 every (self.timeout*10) milisecond. Approx ~ every 100ms
+        """
+        if not self.timer_finished:
+            self.progress.emit(1)
+        else:
+            self.handle_timeout()
+
 
     def handle_timeout(self) -> None:
         """When timeout is reached and the worker did not emit a signal, stop the timer and emit finish signal (Ungraceful exit)
         """
-        print("handle_timeout called (ungraceful)")
+        print(f"handle_timeout called (ungraceful). timer_finished: {self.timer_finished}")
         if(not self.timer_finished):
             self.timer_finished = True
             self.timer.stop()
             self.timeout_signal.emit("Not Found")
             self.timer.deleteLater()
+            self.progress.emit(100)
         self.finished.emit()
         self.requestInterruption()
 
@@ -61,7 +73,7 @@ class CustomThread(QThread):
         Args:
             emitted_result (object, optional): _description_. Defaults to None.
         """
-        print("stop_timer called (graceful)",object)
+        print(f"stop_timer called (graceful). timer_finished: {self.timer_finished}")
         if(not self.timer_finished):
             self.timer_finished = True
             self.timer.stop()
@@ -70,6 +82,7 @@ class CustomThread(QThread):
                 self.timeout_signal.emit("Not Found")
             else:
                 self.timeout_signal.emit(emitted_result)
+            self.progress.emit(100)
         self.finished.emit()
         self.requestInterruption()
 
