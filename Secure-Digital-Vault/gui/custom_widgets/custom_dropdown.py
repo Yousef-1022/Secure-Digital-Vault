@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QComboBox, QWidget
-from utils.locators_and_parsers import get_available_drives
+from utils.parsers import get_available_drives
 import os
 
 class CustomDropdown(QComboBox):

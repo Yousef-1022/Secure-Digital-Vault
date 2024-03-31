@@ -1,14 +1,15 @@
-from custom_exceptions.classes_exceptions import FileDoesNotExist
-from file import File
+from custom_exceptions.classes_exceptions import FileDoesNotExist, MissingKeyInJson, JsonWithInvalidData
+from classes.file import File
 
 
 class Directory:
-    def __init__(self, id:int, name:str, path:str) -> None:
-        self.__id   = id
-        self.__name = name
-        self.__path = path
-        self.__files  = []
-
+    def __init__(self, data_dict : dict) -> None:
+        self.validate_mapped_data(data_dict)
+        self.__id           = data_dict["id"]
+        self.__name         = data_dict["name"]
+        self.__data_created = data_dict["data_created"]
+        self.__path         = data_dict["path"]
+        self.__files        = data_dict["files"]
     # Setter methods
     def set_id(self, id:int) -> None:
         self.__id = id
@@ -29,18 +30,51 @@ class Directory:
     def get_path(self) -> str:
         return self.__path
 
-    def determine_parent(self) -> int:
-        """Gets the parent's (directory) id
+    def get_data_created(self) -> int:
+        return self.__data_created
+
+    def get_files(self) -> list:
+        return self.__files
+
+    def validate_mapped_data(self, data : dict) -> bool:
+        """Checks whether the passed dict represents a valid Dictionary
+
+        Args:
+            data_dict (dict): dict from the dictionaries map
+
+        """
+        expected_types = {
+            "id": int,
+            "name": str,
+            "path": str,
+            "data_created": int,
+            "files": list
+        }
+
+        for key, expected_type in expected_types.items():
+            if key not in data:
+                raise MissingKeyInJson(f"Key: '{key}' is missing from the dict map data")
+            if not isinstance(data[key], expected_type):
+                raise JsonWithInvalidData(f"Key: '{key}' with data: '{data[key]}' should be of type {expected_type} but is of type: '{type(data[key])}'")
+            if key == "files":
+                for value in data[key]:
+                    if not isinstance(value, int):
+                        raise JsonWithInvalidData(f"The '{key}' key must contain a list of int but '{value}' is of type: {type(value)}.")
+
+    @staticmethod
+    def determine_parent(self, path:str) -> str:
+        """Gets the parent's (directory) path, e.g: /splendid/matter/ will return: /splendid/
 
         Returns:
-            int: Parent id. -1 if Main directory, another number if not Main directory.
+            str: Parent path. / if Main directory
         """
-        if (self.__path == "/"):
-            return -1
-        last_slash_index = self.__path.rfind("/")
-        second_last_slash_index = self.__path.rfind("/", 0, last_slash_index)
-        parent_id = int(self.__path[second_last_slash_index + 1:last_slash_index])
-        return parent_id
+        if len(path) == 1 and path[0] == "/":
+            return path
+        parent = None
+        if path.endswith('/'):
+            parent = path[:-1]
+        last_slash_index = parent.rfind("/")
+        return parent[:last_slash_index+1]
 
     def add_file(self, file:File) -> bool:
         """Adds the given file into the dictionary.

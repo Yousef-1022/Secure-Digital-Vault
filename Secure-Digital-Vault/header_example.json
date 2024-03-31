@@ -21,9 +21,20 @@
             {
                 "directory": {
                     "id" : 1,
-                    "name" : "dir_name",
+                    "name" : "splendid",
                     "path" : "/",
-                    "files" : [1,2,3,4,5]
+                    "data_created" : 1710020055,
+                    "files" : [1]
+                }
+            }
+            ,
+            {
+                "directory": {
+                    "id" : 2,
+                    "name" : "stuff",
+                    "path" : "/splendid/",
+                    "data_created" : 1710000055,
+                    "files" : [2]
                 }
             }
         ],
@@ -39,11 +50,33 @@
                     "file_encrypted" : false,
                     "path" : "/",
                     "metadata" : {
-                        "name" : "file_name",
-                        "type" : ".txt",
+                        "name" : "Hell No",
+                        "type" : ".mp4",
                         "data_created" : 1710070055,
                         "last_modified" : 1710070069,
+                        "icon_data_start": 9434742,
+                        "icon_data_end" : 9447627,
                         "voice_note_id" : 1
+                    }
+                }
+            },
+            {
+                "file" : {
+                    "id" : 2,
+                    "size" : 1024,
+                    "loc_start" : 2000,
+                    "loc_end" : 3024,
+                    "checksum" : "0x6cxf9dd",
+                    "file_encrypted" : false,
+                    "path" : "/splendid/",
+                    "metadata" : {
+                        "name" : "Graves & Jupe - VHS",
+                        "type" : ".mp3",
+                        "data_created" : 1710081055,
+                        "last_modified" : 1710081069,
+                        "icon_data_start": 3916,
+                        "icon_data_end" : 15749,
+                        "voice_note_id" : 2
                     }
                 }
             }

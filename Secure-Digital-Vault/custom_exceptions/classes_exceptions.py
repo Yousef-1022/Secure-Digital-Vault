@@ -24,3 +24,11 @@ class MissingKeyInJson(Exception):
     def __init__(self, message):
         self.message = f"MissingKeyInJson exception raised. {message}"
         super().__init__(self.message)
+
+
+class InvalidMetaData(Exception):
+    """Exception when MetaData has a missing mandatory key inside. Used in File lookup / directory Lookup"""
+    def __init__(self, message):
+        self.message = f"InvalidMetaData exception raised. {message}"
+        super().__init__(self.message)
+

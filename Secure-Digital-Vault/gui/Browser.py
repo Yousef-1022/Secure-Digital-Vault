@@ -64,20 +64,20 @@ class VaultSearchWindow(QMainWindow):
         # (Insert Button + Drive) = treeWidgetUpperVerticalLayout2
         self.treeWidgetAddressBarButton = CustomButton("Insert", QIcon(ICON_2), "Confirm the path to navigate", self.centralwidget)
         self.treeWidgetAddressBarButton.set_action(lambda : self.on_insert_button_clicked(self.treeWidgetAddressBar.text()))
-        self.driveDropdown = CustomDropdown(self.centralwidget)
+        self.driveDropdown = CustomDropdown(self.centralwidget) # OnCurrentIndexChanged will have a function call to repopulate the tree.
         self.treeWidgetUpperVerticalLayout2.addWidget(self.treeWidgetAddressBarButton)
         self.treeWidgetUpperVerticalLayout2.addWidget(self.driveDropdown)
+
+        # Tree widget -> vertical_div
+        self.treeWidget = CustomTreeWidget(columns=4,vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
+        self.treeWidget.populate(currentAddress)
+        self.treeWidget.updated_signal.connect(self.treeWidgetAddressBar.setText)
 
         def driveDropdownModifyLocation():
             drive = self.driveDropdown.currentText()
             self.treeWidget.populate(drive)
             self.treeWidgetAddressBar.setText(drive)
         self.driveDropdown.currentIndexChanged.connect(lambda: driveDropdownModifyLocation())
-
-        # Tree widget -> vertical_div
-        self.treeWidget = CustomTreeWidget(4, self.centralwidget)
-        self.treeWidget.populate(currentAddress)
-        self.treeWidget.updated_signal.connect(self.treeWidgetAddressBar.setText)
 
         # Merge Upper Layout with middle Part
         self.treeWidgetUpperHorziontalLayout.addLayout(self.treeWidgetUpperVerticalLayout1)
@@ -179,7 +179,7 @@ class VaultSearchWindow(QMainWindow):
         self.worker.finished.connect(self.mythread.stop_timer)
         self.worker.finished.connect(self.mythread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER
+        #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
         # Progress functions
         def update_detected_file(emitted_obj : object) -> None:
@@ -197,7 +197,7 @@ class VaultSearchWindow(QMainWindow):
         self.mythread.progress.connect(update_detected_button_progress)
         self.mythread.timeout_signal.connect(update_detected_file)
         self.mythread.finished.connect(self.mythread.quit)
-        #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER
+        #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
         self.mythread.start()
 
@@ -238,8 +238,9 @@ class VaultSearchWindow(QMainWindow):
             message_box.setWindowTitle("Vault Extension")
             message_box.showMessage(f"The extension of the vault: '{vault_extension}' does not correspond to the extension of '{vault_loc}'!")
         else:
-            # Do import logic here _ PLACEHOLDER
-            print(f"Password: {password} - Vault location: {vault_loc} - Extension: {vault_extension}")
+            # Do import logic here _ PLACEHOLDER TODO
+            print(f"Password: {password} - Vault location: {vault_loc} - Extension: {vault_extension}. NOW FIX IT")
+            #self.exit()
 
     # Button insert handle results
     def on_insert_button_clicked(self, path : str) -> None:
@@ -269,10 +270,13 @@ class VaultSearchWindow(QMainWindow):
 
     # Cleanup
     def exit(self) -> None:
-        """Cleans up any available threads and tries to close them
+        """Cleans up any available threads and tries to close them along with the window.
         """
         for t in self.threads:
             t.exit()
         self.threads.clear()
-        print("Exit the window _ PLACEHOLDER")
+        print(self.hide())
+        print(self.close())
+        print(self.destroy())
+        print("Exit the window  _ PLACEHOLDER TODO")
 

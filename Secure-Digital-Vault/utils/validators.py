@@ -1,4 +1,5 @@
 
+
 def is_proper_extension(extension : str, type_of_extension : str = None) -> bool:
     """Checks whether the given string is a valid extension.
 
