@@ -10,7 +10,7 @@ class CustomButton(QPushButton):
 
         Parameters:
             label (str): The label text for the button.
-            icon_path (str): The file path to the button icon.
+            icon (QIcon): The button icon.
             context_box_text (str): The text to display in the menu context box.
             parent (QWidget): The parent widget. Defaults to None.
         """

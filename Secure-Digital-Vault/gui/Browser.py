@@ -37,87 +37,87 @@ class VaultSearchWindow(QMainWindow):
         self.vertical_div = QVBoxLayout(self.centralwidget)
 
         # Tree Widget upper horziontal layout (Address bar, Insert button, Drive choice)
-        currentAddress = os.getcwd().replace("\\","/")
-        self.treeWidgetUpperHorziontalLayout = QHBoxLayout()
-        self.treeWidgetUpperHorziontalSubLayout1 = QHBoxLayout() # (Extension , Detect Button)
-        self.treeWidgetUpperVerticalLayout1 = QVBoxLayout()   # Address , (Extension , Detect Button)
-        self.treeWidgetUpperVerticalLayout2 = QVBoxLayout()   # (Insert Button + Drive)
+        current_address = os.getcwd().replace("\\","/")
+        self.upper_horziontal_layout = QHBoxLayout()     # UpperVerticalLayout1 + UpperVerticalLayout2
+        self.upper_horziontal_sublayout = QHBoxLayout()  # (Extension , Detect Button)
+        self.upper_vertical_layout1 = QVBoxLayout()      # Address , (Extension , Detect Button)
+        self.upper_vertical_layout2 = QVBoxLayout()      # (Insert Button + Drive)
 
-        # Address -> treeWidgetUpperVerticalLayout1
-        self.treeWidgetAddressBar = CustomLine(self.centralwidget)
-        self.treeWidgetAddressBar.setPlaceholderText("Address path, e.g, C:\Program Files")
-        self.treeWidgetAddressBar.setText(currentAddress)
-        self.treeWidgetAddressBar.returnPressed.connect(lambda : self.on_insert_button_clicked(self.treeWidgetAddressBar.text()))
-        self.treeWidgetUpperVerticalLayout1.addWidget(self.treeWidgetAddressBar)
+        # Address -> upper_vertical_layout1
+        self.address_bar = CustomLine(self.centralwidget)
+        self.address_bar.setPlaceholderText("Address path, e.g, C:\Program Files")
+        self.address_bar.setText(current_address)
+        self.address_bar.returnPressed.connect(lambda : self.on_insert_button_clicked(self.address_bar.text()))
+        self.upper_vertical_layout1.addWidget(self.address_bar)
 
-        # (Extension , Detect Button) = treeWidgetUpperHorziontalSubLayout1 -> treeWidgetUpperVerticalLayout1
-        self.vaultExtensionLine = CustomLine(self.centralwidget)
-        self.vaultExtensionLine.setPlaceholderText("Vault extension, e.g., .vault")
-        self.detectVaultButton = CustomButton("Detect", QIcon(ICON_1),
+        # (Extension , Detect Button) = upper_horziontal_sublayout -> upper_vertical_layout1
+        self.vault_extension_line = CustomLine(self.centralwidget)
+        self.vault_extension_line.setPlaceholderText("Vault extension, e.g., .vault")
+        self.detect_vault_button = CustomButton("Detect", QIcon(ICON_1),
                                               "Detects vault in recently viewed directory and inserts it into vault location line",
                                               self.centralwidget)
-        self.detectVaultButton.set_action(lambda : self.on_detect_button_clicked(self.vaultExtensionLine.text()))
-        self.treeWidgetUpperHorziontalSubLayout1.addWidget(self.vaultExtensionLine)
-        self.treeWidgetUpperHorziontalSubLayout1.addWidget(self.detectVaultButton)
-        self.treeWidgetUpperVerticalLayout1.addLayout(self.treeWidgetUpperHorziontalSubLayout1)
+        self.detect_vault_button.set_action(lambda : self.on_detect_button_clicked(self.vault_extension_line.text()))
+        self.upper_horziontal_sublayout.addWidget(self.vault_extension_line)
+        self.upper_horziontal_sublayout.addWidget(self.detect_vault_button)
+        self.upper_vertical_layout1.addLayout(self.upper_horziontal_sublayout)
 
-        # (Insert Button + Drive) = treeWidgetUpperVerticalLayout2
-        self.treeWidgetAddressBarButton = CustomButton("Insert", QIcon(ICON_2), "Confirm the path to navigate", self.centralwidget)
-        self.treeWidgetAddressBarButton.set_action(lambda : self.on_insert_button_clicked(self.treeWidgetAddressBar.text()))
-        self.driveDropdown = CustomDropdown(self.centralwidget) # OnCurrentIndexChanged will have a function call to repopulate the tree.
-        self.treeWidgetUpperVerticalLayout2.addWidget(self.treeWidgetAddressBarButton)
-        self.treeWidgetUpperVerticalLayout2.addWidget(self.driveDropdown)
+        # (Insert Button + Drive) = upper_vertical_layout2
+        self.address_bar_button = CustomButton("Insert", QIcon(ICON_2), "Confirm the path to navigate", self.centralwidget)
+        self.address_bar_button.set_action(lambda : self.on_insert_button_clicked(self.address_bar.text()))
+        self.drive_dropdown = CustomDropdown(self.centralwidget) # OnCurrentIndexChanged will have a function call to repopulate the tree.
+        self.upper_vertical_layout2.addWidget(self.address_bar_button)
+        self.upper_vertical_layout2.addWidget(self.drive_dropdown)
 
         # Tree widget -> vertical_div
-        self.treeWidget = CustomTreeWidget(columns=4,vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
-        self.treeWidget.populate(currentAddress)
-        self.treeWidget.updated_signal.connect(self.treeWidgetAddressBar.setText)
+        self.tree_widget = CustomTreeWidget(columns=4,vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
+        self.tree_widget.populate(current_address)
+        self.tree_widget.updated_signal.connect(self.address_bar.setText)
 
-        def driveDropdownModifyLocation():
-            drive = self.driveDropdown.currentText()
-            self.treeWidget.populate(drive)
-            self.treeWidgetAddressBar.setText(drive)
-        self.driveDropdown.currentIndexChanged.connect(lambda: driveDropdownModifyLocation())
+        def drive_dropdown_modify_location():
+            drive = self.drive_dropdown.currentText()
+            self.tree_widget.populate(drive)
+            self.address_bar.setText(drive)
+        self.drive_dropdown.currentIndexChanged.connect(lambda: drive_dropdown_modify_location())
 
         # Merge Upper Layout with middle Part
-        self.treeWidgetUpperHorziontalLayout.addLayout(self.treeWidgetUpperVerticalLayout1)
-        self.treeWidgetUpperHorziontalLayout.addLayout(self.treeWidgetUpperVerticalLayout2)
-        self.detectVaultButtonProgressBar = CustomProgressBar(is_visible_at_start=False, parent=self.centralwidget)
+        self.upper_horziontal_layout.addLayout(self.upper_vertical_layout1)
+        self.upper_horziontal_layout.addLayout(self.upper_vertical_layout2)
+        self.detect_vault_button_progress_bar = CustomProgressBar(is_visible_at_start=False, parent=self.centralwidget)
 
-        self.vertical_div.addLayout(self.treeWidgetUpperHorziontalLayout)
-        self.vertical_div.addWidget(self.detectVaultButtonProgressBar)
-        self.vertical_div.addWidget(self.treeWidget)
+        self.vertical_div.addLayout(self.upper_horziontal_layout)
+        self.vertical_div.addWidget(self.detect_vault_button_progress_bar)
+        self.vertical_div.addWidget(self.tree_widget)
 
         # Bottom Part of the vault
-        self.treeWidgetBottomVerticalLayout1 = QVBoxLayout() # (Password , Reset Button) , (Vault Location , Import Button)
-        self.treeWidgetBottomHorziontalSubLayout1 = QHBoxLayout() # (Password , Reset Button)
-        self.treeWidgetBottomHorziontalSubLayout2 = QHBoxLayout() # (Vault Location , Import Button)
+        self.bottom_vertical_layout1 = QVBoxLayout()       # (Password , Reset Button) , (Vault Location , Import Button)
+        self.bottom_horziontal_sub_layout1 = QHBoxLayout() # (Password , Reset Button)
+        self.bottom_horziontal_sub_layout2 = QHBoxLayout() # (Vault Location , Import Button)
 
         # Password line edit , Reset Button
-        self.passwordLineEdit = CustomPasswordLineEdit(placeholder_text="Vault password", icon=QIcon(ICON_7) , parent=self.centralwidget)
-        self.resetFieldsButton = CustomButton("Reset", QIcon(ICON_3), "Reset all fields", self.centralwidget)
-        self.resetFieldsButton.clicked.connect(self.on_reset_button_clicked)
-        self.treeWidgetBottomHorziontalSubLayout1.addWidget(self.resetFieldsButton)
-        self.treeWidgetBottomHorziontalSubLayout1.addWidget(self.passwordLineEdit)
+        self.password_line_edit = CustomPasswordLineEdit(placeholder_text="Vault password", icon=QIcon(ICON_7) , parent=self.centralwidget)
+        self.reset_fields_button = CustomButton("Reset", QIcon(ICON_3), "Reset all fields", self.centralwidget)
+        self.reset_fields_button.clicked.connect(self.on_reset_button_clicked)
+        self.bottom_horziontal_sub_layout1.addWidget(self.reset_fields_button)
+        self.bottom_horziontal_sub_layout1.addWidget(self.password_line_edit)
 
         # Vault Location line edit , Import Button
-        self.vaultLocationLine = CustomLine(self.centralwidget)
-        self.vaultLocationLine.setPlaceholderText("Vault location")
-        self.importVaultButton = CustomButton("Import", QIcon(ICON_4), "Click to import vault once the password and file location are filled",
+        self.vault_location_line = CustomLine(self.centralwidget)
+        self.vault_location_line.setPlaceholderText("Vault location")
+        self.import_vault_button = CustomButton("Import", QIcon(ICON_4), "Click to import vault once the password and file location are filled",
                                               self.centralwidget)
-        self.importVaultButton.set_action(self.on_import_button_clicked)
-        self.treeWidgetBottomHorziontalSubLayout2.addWidget(self.vaultLocationLine)
-        self.treeWidgetBottomHorziontalSubLayout2.addWidget(self.importVaultButton)
+        self.import_vault_button.set_action(self.on_import_button_clicked)
+        self.bottom_horziontal_sub_layout2.addWidget(self.vault_location_line)
+        self.bottom_horziontal_sub_layout2.addWidget(self.import_vault_button)
 
         def treeWidgetModifyLocationAndExtension(file_path : str) -> None:
-            self.vaultLocationLine.setText(file_path)
-            self.vaultExtensionLine.setText(file_path[file_path.rfind('.'):])
-        self.treeWidget.clicked_file_signal.connect(treeWidgetModifyLocationAndExtension)
+            self.vault_location_line.setText(file_path)
+            self.vault_extension_line.setText(file_path[file_path.rfind('.'):])
+        self.tree_widget.clicked_file_signal.connect(treeWidgetModifyLocationAndExtension)
 
         # Merge Bottom into main
-        self.treeWidgetBottomVerticalLayout1.addLayout(self.treeWidgetBottomHorziontalSubLayout1)
-        self.treeWidgetBottomVerticalLayout1.addLayout(self.treeWidgetBottomHorziontalSubLayout2)
-        self.vertical_div.addLayout(self.treeWidgetBottomVerticalLayout1)
+        self.bottom_vertical_layout1.addLayout(self.bottom_horziontal_sub_layout1)
+        self.bottom_vertical_layout1.addLayout(self.bottom_horziontal_sub_layout2)
+        self.vertical_div.addLayout(self.bottom_vertical_layout1)
 
         # Unknown
         self.setCentralWidget(self.centralwidget)
@@ -152,7 +152,7 @@ class VaultSearchWindow(QMainWindow):
     # Button detect handle results
     def on_detect_button_clicked(self, vault_extension: str) -> None:
         """Attempts to find the given vault_extension in the displayed working dir with a seperate thread.
-        Updates vaultLocationLine with `Not Found` or the vault location
+        Updates vault_location_line with `Not Found` or the vault location
 
         Args:
             vault_extension (str): vault_extension aka .vault
@@ -171,7 +171,7 @@ class VaultSearchWindow(QMainWindow):
 
         self.mythread = CustomThread(10 , self.detect_vault.__name__)
         self.threads.append(self.mythread)
-        self.worker = Worker(self.detect_vault, vault_extension, self.treeWidget.current_path)
+        self.worker = Worker(self.detect_vault, vault_extension, self.tree_widget.current_path)
 
         self.worker.moveToThread(self.mythread)
         self.mythread.started.connect(self.worker.run)
@@ -183,16 +183,16 @@ class VaultSearchWindow(QMainWindow):
 
         # Progress functions
         def update_detected_file(emitted_obj : object) -> None:
-            self.vaultLocationLine.setText(str(emitted_obj))
+            self.vault_location_line.setText(str(emitted_obj))
 
         def update_detected_button_progress(emitted_num : int) -> None:
-            if emitted_num == 100 or self.detectVaultButtonProgressBar.value() == 100:
-                self.detectVaultButtonProgressBar.stop_progress()
+            if emitted_num == 100 or self.detect_vault_button_progress_bar.value() == 100:
+                self.detect_vault_button_progress_bar.stop_progress()
                 return
-            if self.detectVaultButtonProgressBar.value() == 0:
-                self.detectVaultButtonProgressBar.setVisible(True)
-            current_value = self.detectVaultButtonProgressBar.value()
-            self.detectVaultButtonProgressBar.setValue(emitted_num + current_value)
+            if self.detect_vault_button_progress_bar.value() == 0:
+                self.detect_vault_button_progress_bar.setVisible(True)
+            current_value = self.detect_vault_button_progress_bar.value()
+            self.detect_vault_button_progress_bar.setValue(emitted_num + current_value)
 
         self.mythread.progress.connect(update_detected_button_progress)
         self.mythread.timeout_signal.connect(update_detected_file)
@@ -205,20 +205,20 @@ class VaultSearchWindow(QMainWindow):
     def on_reset_button_clicked(self) -> None:
         """Reset all fields visible on the Window to empty strings. Also resets the TreeView
         """
-        current_drive = self.driveDropdown.currentText()
-        self.treeWidgetAddressBar.setText(current_drive)
-        self.vaultExtensionLine.setText("")
-        self.treeWidget.populate(current_drive)
-        self.passwordLineEdit.get_passwordLine().setText("")
-        self.vaultLocationLine.setText("")
+        current_drive = self.drive_dropdown.currentText()
+        self.address_bar.setText(current_drive)
+        self.vault_extension_line.setText("")
+        self.tree_widget.populate(current_drive)
+        self.password_line_edit.get_passwordLine().setText("")
+        self.vault_location_line.setText("")
 
     # Button import handle results
     def on_import_button_clicked(self) -> None:
         """Logic to import vault
         """
-        password = self.passwordLineEdit.get_passwordLine().text()
-        vault_loc = self.vaultLocationLine.text()
-        vault_extension = self.vaultExtensionLine.text().replace(" ", "")
+        password = self.password_line_edit.get_passwordLine().text()
+        vault_loc = self.vault_location_line.text()
+        vault_extension = self.vault_extension_line.text().replace(" ", "")
 
         message_box = CustomMessageBox(parent=self)
         if not password:
@@ -251,13 +251,13 @@ class VaultSearchWindow(QMainWindow):
         """
         if not path:
             return
-        self.treeWidgetAddressBar.setText(path)
+        self.address_bar.setText(path)
         drive = path[0] + ":\\" # Edge case when drive is only selected, first letter is taken
-        for i in range(self.driveDropdown.count()):
-            if drive == self.driveDropdown.itemText(i):
-                self.driveDropdown.setCurrentIndex(i)
+        for i in range(self.drive_dropdown.count()):
+            if drive == self.drive_dropdown.itemText(i):
+                self.drive_dropdown.setCurrentIndex(i)
                 break
-        self.treeWidget.populate(path)
+        self.tree_widget.populate(path)
 
     # Button detect handle results
     def handle_detect_vault_result(self, result : str) -> None:
@@ -266,7 +266,7 @@ class VaultSearchWindow(QMainWindow):
         Args:
             result (str): Result is the emitted value from the sub thread searching for the vault in the current directory
         """
-        self.vaultLocationLine.setText(result)
+        self.vault_location_line.setText(result)
 
     # Cleanup
     def exit(self) -> None:

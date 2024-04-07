@@ -99,6 +99,7 @@ class CustomTreeWidget(QTreeWidget):
             self.set_item_text(item, entry)
             self.addTopLevelItem(item)
         self.resize_columns(50)
+        self.setCurrentItem(self.topLevelItem(0))
 
     def populate_from_header(self, header_map : dict, current_path : str, vault_path : str) -> None:
         """Populates the tree widget from the map data
@@ -142,6 +143,7 @@ class CustomTreeWidget(QTreeWidget):
                 self.set_item_text(item, file)
                 self.addTopLevelItem(item)
         self.resize_columns(50)
+        self.setCurrentItem(self.topLevelItem(0))
 
     def resize_columns(self, extra_pixels : int = 0) -> None:
         """Resizes the columns to fit the data nicely with a little extra space
