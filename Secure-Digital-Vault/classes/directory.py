@@ -36,6 +36,8 @@ class Directory:
     def get_files(self) -> list:
         return self.__files
 
+    # TODO
+
     def validate_mapped_data(self, data : dict) -> bool:
         """Checks whether the passed dict represents a valid Dictionary
 
@@ -66,15 +68,36 @@ class Directory:
         """Gets the parent's (directory) path, e.g: /splendid/matter/ will return: /splendid/
 
         Returns:
-            str: Parent path. / if Main directory
+            str: Parent path. / if Main directory or "None" If invalid path
         """
         if len(path) == 1 and path[0] == "/":
             return path
         parent = None
         if path.endswith('/'):
             parent = path[:-1]
+        else:
+            return None
         last_slash_index = parent.rfind("/")
         return parent[:last_slash_index+1]
+
+    @staticmethod
+    def determine_name(self, path:str) -> str:
+        """Gets from the directory path the name, e.g: /splendid/matter/ will return: matter
+        Returns:
+            str: Name of the directory, "None" If invalid
+        """
+        if len(path) == 1 and path[0] == "/":
+            return path
+        name = None
+        if path.endswith('/'):
+            name = path[:-1]
+        else:
+            return name
+        last_slash_index = name.rfind("/")
+        result = name[last_slash_index+1:len(name)]
+        if len(result) == 0:
+            return None
+        return result
 
     def add_file(self, file:File) -> bool:
         """Adds the given file into the dictionary.

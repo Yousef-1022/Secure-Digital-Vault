@@ -44,15 +44,12 @@ class VaultSearchWindow(QMainWindow):
         self.upper_vertical_layout2 = QVBoxLayout()      # (Insert Button + Drive)
 
         # Address -> upper_vertical_layout1
-        self.address_bar = CustomLine(self.centralwidget)
-        self.address_bar.setPlaceholderText("Address path, e.g, C:\Program Files")
-        self.address_bar.setText(current_address)
+        self.address_bar = CustomLine(text=current_address,place_holder_text="Address path, e.g, C:\Program Files",parent=self.centralwidget)
         self.address_bar.returnPressed.connect(lambda : self.on_insert_button_clicked(self.address_bar.text()))
         self.upper_vertical_layout1.addWidget(self.address_bar)
 
         # (Extension , Detect Button) = upper_horziontal_sublayout -> upper_vertical_layout1
-        self.vault_extension_line = CustomLine(self.centralwidget)
-        self.vault_extension_line.setPlaceholderText("Vault extension, e.g., .vault")
+        self.vault_extension_line = CustomLine(text="", place_holder_text="Vault extension, e.g., .vault" ,parent=self.centralwidget)
         self.detect_vault_button = CustomButton("Detect", QIcon(ICON_1),
                                               "Detects vault in recently viewed directory and inserts it into vault location line",
                                               self.centralwidget)
@@ -101,8 +98,7 @@ class VaultSearchWindow(QMainWindow):
         self.bottom_horziontal_sub_layout1.addWidget(self.password_line_edit)
 
         # Vault Location line edit , Import Button
-        self.vault_location_line = CustomLine(self.centralwidget)
-        self.vault_location_line.setPlaceholderText("Vault location")
+        self.vault_location_line = CustomLine(text="", place_holder_text="Vault location",parent=self.centralwidget)
         self.import_vault_button = CustomButton("Import", QIcon(ICON_4), "Click to import vault once the password and file location are filled",
                                               self.centralwidget)
         self.import_vault_button.set_action(self.on_import_button_clicked)
@@ -138,6 +134,7 @@ class VaultSearchWindow(QMainWindow):
             str: Location of the vault, None if not available
         """
         if not is_proper_extension(vault_extension):
+            # TODO LOGGER , but is already up
             return None
         if(not cwd):
             current_directory = os.getcwd()
@@ -163,7 +160,7 @@ class VaultSearchWindow(QMainWindow):
             message_box.setIcon(QMessageBox.Icon.Warning)
             message_box.setWindowTitle("Vault extension")
             message_box.showMessage(f"The extension: '{extension}' of the vault is invalid!")
-            return
+            return None
         for t in self.threads:
             if(t.handled_function == "detect_vault" and not t.timer_finished):
                 self.logger.info(f"{t} is Already running with {t.handled_function}")
@@ -171,7 +168,8 @@ class VaultSearchWindow(QMainWindow):
 
         self.mythread = CustomThread(10 , self.detect_vault.__name__)
         self.threads.append(self.mythread)
-        self.worker = Worker(self.detect_vault, vault_extension, self.tree_widget.current_path)
+        cwd = self.address_bar.text() if self.address_bar.text() is not None else self.drive_dropdown.currentText()
+        self.worker = Worker(self.detect_vault, vault_extension, cwd)
 
         self.worker.moveToThread(self.mythread)
         self.mythread.started.connect(self.worker.run)
@@ -239,7 +237,7 @@ class VaultSearchWindow(QMainWindow):
             message_box.showMessage(f"The extension of the vault: '{vault_extension}' does not correspond to the extension of '{vault_loc}'!")
         else:
             # Do import logic here _ PLACEHOLDER TODO
-            print(f"Password: {password} - Vault location: {vault_loc} - Extension: {vault_extension}. NOW FIX IT")
+            print(f"Password: {password} - Vault location: {vault_loc} - Extension: {vault_extension}. Redirect to vault view")
             #self.exit()
 
     # Button insert handle results

@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QStatusBar
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QStatusBar, QMessageBox, QDialog
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1
@@ -9,6 +9,10 @@ from logger.logging import Logger
 
 from gui.custom_widgets.custom_tree_widget import CustomTreeWidget
 from gui.custom_widgets.custom_button import CustomButton
+from gui.custom_widgets.custom_line import CustomLine
+from gui.custom_widgets.custom_messagebox import CustomMessageBox
+from gui.custom_widgets.find_file_dialog import FindFileDialog
+from gui.custom_widgets.view_file_window import ViewFileWindow
 
 
 class VaultViewWindow(QMainWindow):
@@ -44,6 +48,9 @@ class VaultViewWindow(QMainWindow):
         self.setMinimumHeight(600)
         self.resize(1024, 768)
 
+        # Window References are kept , they go out of scope and are garbage collected, which will destroy the underlying C++ obj.
+        self.view_file_window = None
+
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
 
@@ -51,28 +58,55 @@ class VaultViewWindow(QMainWindow):
         self.vertical_div = QVBoxLayout(self.centralwidget)
 
         # Window Representation
-        self.upper_horizontal_layout = QHBoxLayout()    # AddToVault + ExtractFromVault + ViewMetaData + DeleteFromVault + FindInVault
+        self.upper_horizontal_layout1 = QHBoxLayout()   # AddToVault + ExtractFromVault + ViewMetaData + DeleteFromVault + FindInVault
+        self.upper_horizontal_layout2 = QHBoxLayout()   # CurrentPath + Insert
 
-        # Buttons
+        # Main Buttons -> upper_horizontal_layout1
+        # Add To Vault
         self.add_to_vault = CustomButton("Add",QIcon(ICON_1), "Add file(s) into the vault",self.centralwidget)
-        self.extract_from_vault = CustomButton("Extract",QIcon(ICON_1), "Extract file(s) out of the vault. Files are not deleted.",self.centralwidget)
-        self.view_metadata = CustomButton("View",QIcon(ICON_1), "View metadata of the currently held item.",self.centralwidget)
-        self.delete_from_vault = CustomButton("Delete",QIcon(ICON_1), "Delete file(s) in the vault",self.centralwidget)
-        self.find_in_vault = CustomButton("Find",QIcon(ICON_1), "Find file(s) in the vault",self.centralwidget)
 
-        # Merging buttons and adding them into the main layout
-        self.upper_horizontal_layout.addWidget(self.add_to_vault)
-        self.upper_horizontal_layout.addWidget(self.extract_from_vault)
-        self.upper_horizontal_layout.addWidget(self.view_metadata)
-        self.upper_horizontal_layout.addWidget(self.delete_from_vault)
-        self.upper_horizontal_layout.addWidget(self.find_in_vault)
-        self.vertical_div.addLayout(self.upper_horizontal_layout)
+        # Extract From Vault
+        self.extract_from_vault = CustomButton("Extract",QIcon(ICON_1), "Extract file(s) out of the vault. Files are not deleted.",self.centralwidget)
+
+        # View Metadata
+        self.view_metadata = CustomButton("View",QIcon(ICON_1), "View metadata of the currently held item.",self.centralwidget)
+        self.view_metadata.set_action(lambda : self.open_view_window(self.tree_widget.currentItem()))
+
+        # Delete from Vault
+        self.delete_from_vault = CustomButton("Delete",QIcon(ICON_1), "Delete file(s) in the vault",self.centralwidget)
+
+        # Find in vault
+        self.find_in_vault = CustomButton("Find",QIcon(ICON_1), "Find file(s) in the vault",self.centralwidget)
+        self.find_in_vault.clicked.connect(self.open_find_dialog)
+
+
+        # Address bar and Insert Button -> upper_horizontal_layout2
+        self.address_bar = CustomLine(text="/", place_holder_text="Path in the vault, e.g, /myFolder/someFolder/", parent=self.centralwidget)
+        self.address_bar.returnPressed.connect(lambda : self.on_insert_button_clicked(self.address_bar.text()))
+
+        self.address_bar_button = CustomButton("Insert", QIcon(ICON_1), "Confirm the path to navigate", self.centralwidget)
+        self.address_bar_button.set_action(lambda : self.on_insert_button_clicked(self.address_bar.text()))
+
+
+        # Merging Upper Layouts and adding them into the main layout
+        self.upper_horizontal_layout1.addWidget(self.add_to_vault)
+        self.upper_horizontal_layout1.addWidget(self.extract_from_vault)
+        self.upper_horizontal_layout1.addWidget(self.view_metadata)
+        self.upper_horizontal_layout1.addWidget(self.delete_from_vault)
+        self.upper_horizontal_layout1.addWidget(self.find_in_vault)
+        self.vertical_div.addLayout(self.upper_horizontal_layout1)
+
+        self.upper_horizontal_layout2.addWidget(self.address_bar)
+        self.upper_horizontal_layout2.addWidget(self.address_bar_button)
+        self.vertical_div.addLayout(self.upper_horizontal_layout2)
+
 
         # Tree widget -> vertical_div
         self.tree_widget = CustomTreeWidget(columns=4,vaultview=True, vaultpath=self.__vault.get_vault_path(),
                                            header_map=self.__vault.get_map(), parent=self.centralwidget)
         self.tree_widget.update_columns_with(["Data Created"])
         self.tree_widget.populate_from_header(self.__vault.get_header()["map"],"/",self.__vault.get_vault_path())
+        self.tree_widget.updated_signal.connect(self.address_bar.setText)
         self.vertical_div.addWidget(self.tree_widget)
 
         # Unknown
@@ -80,3 +114,35 @@ class VaultViewWindow(QMainWindow):
         self.statusbar = QStatusBar(self)
         self.statusbar.setObjectName("statusbar")
         self.setStatusBar(self.statusbar)
+
+    # Button insert handle results
+    def on_insert_button_clicked(self, path : str) -> None:
+        """If there is path added by the user, then update the tree view with it
+
+        Args:
+            path (str): Path inside the vault given by the user
+        """
+        if not path:
+            return None
+        valid_path = self.tree_widget.populate_from_header(self.__vault.get_map(),path,self.__vault.get_vault_path())
+        if valid_path:
+            self.address_bar.setText(path)
+        else:
+            message_box = CustomMessageBox(parent=self)
+            message_box.setIcon(QMessageBox.Icon.Warning)
+            message_box.setWindowTitle("Unknown location")
+            message_box.showMessage(f"Could not find the path {path} in the vault!")
+
+    def open_find_dialog(self):
+        """On find button click show dialog.
+        """
+        dialog = FindFileDialog(self)
+        dialog.exec()
+
+    def open_view_window(self, held_item : CustomTreeWidget):
+        """On view button click, show view window.
+        """
+        self.view_file_window = ViewFileWindow(held_item)
+        self.view_file_window.show()
+
+    # TODO : add delete later for any Windows that can get opened.

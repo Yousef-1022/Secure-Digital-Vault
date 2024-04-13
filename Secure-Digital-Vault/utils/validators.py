@@ -11,8 +11,10 @@ def is_proper_extension(extension : str, type_of_extension : str = None) -> bool
         bool: True if the extension is proper, False otherwise.
     """
     if extension is None or not extension or extension[0] != "." or len(extension) < 2:
+        #TODO logger
         return False
     if extension.count('.') != 1:
+        #TODO logger
         return False
     if type_of_extension is None or not type_of_extension:
         return True
