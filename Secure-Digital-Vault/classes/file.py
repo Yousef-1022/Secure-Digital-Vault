@@ -14,11 +14,6 @@ class File:
         self.__path           = file_info["path"]
         self.__metadata       = file_info["metadata"]
 
-    def __str__(self):
-        if ({self.__metadata["name"]} and {self.__metadata["type"]}):
-            return f'File: {self.__path}{self.__metadata["name"]}{self.__metadata["type"]}, id:{self.__id}'
-        return f"File: {self.__path}, id:{self.__id}"
-
     # Getter methods
     def get_id(self) -> int:
         return self.__id
@@ -38,7 +33,7 @@ class File:
     def get_file_encrypted(self) -> bool:
         return self.__file_encrypted
 
-    def get_path(self) -> str:
+    def get_path(self) -> int:
         return self.__path
 
     def get_metadata(self) -> dict:
@@ -63,7 +58,7 @@ class File:
     def set_file_encrypted(self, file_encrypted:bool) -> None:
         self.__file_encrypted = file_encrypted
 
-    def set_path(self, path:str) -> None:
+    def set_path(self, path:int) -> None:
         self.__path = path
 
     def set_metadata(self, metadata:dict) -> None:
@@ -82,7 +77,7 @@ class File:
             "loc_end": int,
             "checksum": str,
             "file_encrypted": bool,
-            "path": str,
+            "path": int,
             "metadata" : dict,
         }
 

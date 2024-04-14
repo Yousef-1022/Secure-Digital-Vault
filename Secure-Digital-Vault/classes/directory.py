@@ -10,6 +10,7 @@ class Directory:
         self.__data_created = data_dict["data_created"]
         self.__path         = data_dict["path"]
         self.__files        = data_dict["files"]
+
     # Setter methods
     def set_id(self, id:int) -> None:
         self.__id = id
@@ -17,7 +18,7 @@ class Directory:
     def set_name(self, name:str) -> None:
         self.__name = name
 
-    def set_path(self, path:str) -> None:
+    def set_path(self, path:int) -> None:
         self.__path = path
 
     # Getter methods
@@ -27,7 +28,7 @@ class Directory:
     def get_name(self) -> str:
         return self.__name
 
-    def get_path(self) -> str:
+    def get_path(self) -> int:
         return self.__path
 
     def get_data_created(self) -> int:
@@ -36,7 +37,13 @@ class Directory:
     def get_files(self) -> list:
         return self.__files
 
-    # TODO
+    def get_metadata(self) -> dict:
+        return {
+            "name": self.__name,
+            "type": "Folder",
+            "data_created" : self.__data_created,
+            "files" : len(self.__files)
+        }
 
     def validate_mapped_data(self, data : dict) -> bool:
         """Checks whether the passed dict represents a valid Dictionary
@@ -48,7 +55,7 @@ class Directory:
         expected_types = {
             "id": int,
             "name": str,
-            "path": str,
+            "path": int,
             "data_created": int,
             "files": list
         }
@@ -64,40 +71,74 @@ class Directory:
                         raise JsonWithInvalidData(f"The '{key}' key must contain a list of int but '{value}' is of type: {type(value)}.")
 
     @staticmethod
-    def determine_parent(self, path:str) -> str:
-        """Gets the parent's (directory) path, e.g: /splendid/matter/ will return: /splendid/
+    def determine_parent_by_id(path_id : int , data_dict: dict) -> int:
+        """Based on the path id, returns the parent id
+
+        Args:
+            path_id (int): path id of the directory you want its parent
+            data_dict (dict): dict containing all the dictionaries
 
         Returns:
-            str: Parent path. / if Main directory or "None" If invalid path
+            int: Parent ID
         """
-        if len(path) == 1 and path[0] == "/":
-            return path
-        parent = None
-        if path.endswith('/'):
-            parent = path[:-1]
-        else:
-            return None
-        last_slash_index = parent.rfind("/")
-        return parent[:last_slash_index+1]
+        if path_id > 0:
+            for value in data_dict.values():
+                if value["id"] == path_id:
+                    return value["path"]
+        return 0
 
     @staticmethod
-    def determine_name(self, path:str) -> str:
-        """Gets from the directory path the name, e.g: /splendid/matter/ will return: matter
+    def determine_directory_path(path_id: int, data_dict: dict, current_name: str = None) -> str:
+        """Based on the path id , returns the full path name representing the id, e.g: for 2: 'id2 = matter , id1 = splendid' will return: /splendid/matter/
+            This is done recursively, and the given data_dict must be valid. (This is checked beforehand)
+        Args:
+            path_id (int): path id of the directory
+            data_dict (dict): dict containing all the dictionaries
+
         Returns:
-            str: Name of the directory, "None" If invalid
+            str: Name of the directory, "/" If path <= 0
         """
-        if len(path) == 1 and path[0] == "/":
-            return path
-        name = None
-        if path.endswith('/'):
-            name = path[:-1]
+        if path_id <= 0:
+            if current_name is None:
+                return "/"
+            return f"/{current_name}/"
+
+        if str(path_id) not in data_dict:
+            if current_name is None:
+                return "/"
+            return f"/{current_name}/"
+
+        parent_name = data_dict[str(path_id)]["name"]
+
+        if current_name is not None:
+            parent_name += f"/{current_name}"
+
+        parent_id = data_dict[str(path_id)]["path"]
+        return Directory.determine_directory_path(parent_id, data_dict, parent_name)
+
+    @staticmethod
+    def determine_if_dir_path_is_valid(dir_names : list, data_dict: dict, level : int = 0) -> tuple[bool,int]:
+        """Based on the name of a dir, tries to determine whether it is a valid path,
+        this function works in harmony with: parse_directory_string
+
+        Args:
+            dir_names (list): A list containing all the dir names, e.g, [path,to,somewhere]
+            data_dict (dict): dict containing all the dictionaries
+            level (int): current level of directory, e.g, /path/to/somewhere path is 1 , to is 2 , somewhere is 3
+
+        Returns:
+            tuple: first part if valid, second part showing the last level
+        """
+        length = len(dir_names)
+        if length < 1:
+            return True,level
+        elif length == 1 and dir_names[0] == "/":
+            return True,0
         else:
-            return name
-        last_slash_index = name.rfind("/")
-        result = name[last_slash_index+1:len(name)]
-        if len(result) == 0:
-            return None
-        return result
+            for some_dir in data_dict.values():
+                if dir_names[0] == some_dir["name"] and some_dir["path"] == level:
+                    return Directory.determine_if_dir_path_is_valid(dir_names[1:], data_dict, some_dir["id"])
+        return False,level
 
     def add_file(self, file:File) -> bool:
         """Adds the given file into the dictionary.

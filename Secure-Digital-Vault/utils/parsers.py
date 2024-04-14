@@ -93,3 +93,21 @@ def parse_timestamp_to_string(timestamp : int) -> str:
     date_time = datetime.fromtimestamp(timestamp)
     formatted_date_time = date_time.strftime("%d-%b-%y %H:%M")
     return formatted_date_time
+
+def parse_directory_string(dir_path: str) -> tuple[bool, list[str]]:
+    """Parses a directory path name, e.g, /path/to/
+
+    Args:
+        dir (str): Directory path string
+
+    Returns:
+        tuple: first part is a boolean if the directory string is a valid path, second is the list of dirs, e.g, [path,to,somewhere]
+    """
+    forbidden_names = ["<", ">", ":", "\"", "/", "\\", "|", "?", "*", "\0", "."]
+    tmp = [dir_name for dir_name in dir_path.split("/") if dir_name != ""]
+    len1 = len(tmp)
+    if len1 == 0:
+        return (True,["/"])
+    lst = [e for e in tmp if not any(char in forbidden_names for char in e)]
+    len2 = len(lst)
+    return (len1 == len2,lst)

@@ -97,7 +97,7 @@ class CustomTreeWidget(QTreeWidget):
         for entry in directory.entryInfoList():
             item = CustomQTreeWidgetItem([entry.fileName()])
             item.setIcon(0, file_icon_provider.icon(entry))
-            item.set_file_path(entry.absoluteFilePath())   # Store file path as an attribute
+            item.set_path(entry.absoluteFilePath())   # Store file path as an attribute
 
             # Populate additional columns and add the item directly to the tree widget
             self.set_item_text(item, entry)
@@ -105,85 +105,81 @@ class CustomTreeWidget(QTreeWidget):
         self.resize_columns(50)
         self.setCurrentItem(self.topLevelItem(0))
 
-    def populate_from_header(self, header_map : dict, goto_path : str, vault_path : str) -> bool:
+    def populate_from_header(self, header_map : dict, goto_dir : int, vault_path : str) -> bool:
         """Populates the tree widget from the map data
 
         Args:
             header_map (dict): map dict from the header
-            goto_path (str): go to path
+            goto_dir (int): go to path
             vault_path (str): location of the vault in order to extract icons
 
         Returns:
-            bool: indicates whether the population with the goto_path was valid
+            bool: indicates whether the population with the goto_dir was valid
         """
-        files = set()       # Files which belong to the currently viewed directory
-        cleard_once = False # Indicator to clear the tree once, this must be True if the directory is not found
-
-        dir_name = Directory.determine_name(self=None,path=goto_path)
-        if dir_name is None:
+        current_id = self.currentItem().get_path() if self.currentItem() is not None else 0
+        if goto_dir > 0 and str(goto_dir) not in header_map["directories"].keys():
             return False
 
-        if goto_path == "/":
+        cleard_once = False # Indicator to clear the tree once, this must be True if the directory is found
+        skip_files = False  # Indicator incase the current directory does not have files
+
+        cur_dir_name = Directory.determine_directory_path(path_id=goto_dir, data_dict=header_map["directories"])
+
+        if cur_dir_name == "/":
             self.clear()
             cleard_once = True
 
-        # Directories first which exist in goto_path
-        for dir in header_map["directories"]:
-            # Add all directories in the goto_path
-            if dir["directory"]["path"] == goto_path:
+        # Directories first which exist in goto_dir here
+        for dir in header_map["directories"].values():
+            if dir["path"] == goto_dir:
 
+                # Add upto button first
                 if not cleard_once:
                     self.clear()
                     cleard_once = True
-
                     upper_level = CustomQTreeWidgetItem([".."])
-                    upper_level.set_file_path(Directory.determine_parent(None,goto_path))  # upper_level leads backwards
+                    upper_level.set_path(Directory.determine_parent_by_id(current_id,header_map["directories"]))    # upper_level leads backwards
                     # TODO logger if file_path is invalid
                     icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent)
                     upper_level.setText(1, "UpOneLevel")
                     upper_level.setIcon(0, icon)
                     self.addTopLevelItem(upper_level)
 
-                the_directory = Directory(dir["directory"])
+                the_directory = Directory(dir)
                 icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
                 directory_item = CustomQTreeWidgetItem([the_directory.get_name()])
-                directory_item.set_file_path(f"{the_directory.get_path()}{the_directory.get_name()}/")  # file_path indicates where it goes, path itself is where it exists
-                directory_item.setIcon(0, icon)                                                         # e.g, get_path() = '/path/' , get_name() = 'name' -> /path/name
+                directory_item.set_path(the_directory.get_id()) # the item must point to what's inside it.
+                directory_item.setIcon(0, icon)
                 directory_item.set_saved_obj(the_directory)
                 self.set_item_text(directory_item, the_directory)
                 self.addTopLevelItem(directory_item)
 
-                for file_id in the_directory.get_files():
-                    files.add(file_id)
-
-            # Case incase the directory does not exist in the header.
-            elif not cleard_once and dir["directory"]["name"] == dir_name:
-                self.clear()
-                cleard_once = True
-
-                upper_level = CustomQTreeWidgetItem([".."])
-                upper_level.set_file_path(Directory.determine_parent(None,goto_path))  # upper_level leads backwards
-                # TODO logger if file_path is invalid
-                icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent)
-                upper_level.setText(1, "UpOneLevel")
-                upper_level.setIcon(0, icon)
-                self.addTopLevelItem(upper_level)
-
+        # Case incase the directory does not have sub directories
         if not cleard_once:
-            return False
+            self.clear()
+            cleard_once = True
+
+            upper_level = CustomQTreeWidgetItem([".."])
+            upper_level.set_path(Directory.determine_parent_by_id(current_id,header_map["directories"]))  # upper_level leads backwards
+            icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent)
+            upper_level.setText(1, "UpOneLevel")
+            upper_level.setIcon(0, icon)
+            self.addTopLevelItem(upper_level)
+            skip_files = len(header_map["directories"][str(goto_dir)]["files"]) == 0
 
         # Files second which exist in goto_path
-        for entry in header_map["files"]:
-            if entry["file"]["id"] in files:
-                file = File(entry["file"])
-                item = CustomQTreeWidgetItem([file.get_metadata()["name"]])
-                icon_bytes = get_file_from_vault(vault_path,file.get_metadata()["icon_data_start"],file.get_metadata()["icon_data_end"])
-                icon = extract_icon_from_bytes(icon_bytes)
-                item.set_file_path(file.get_path())
-                item.setIcon(0, icon)
-                item.set_saved_obj(file)
-                self.set_item_text(item, file)
-                self.addTopLevelItem(item)
+        if not skip_files:
+            for entry in header_map["files"].values():
+                if entry["path"] == goto_dir:
+                    file = File(entry)
+                    item = CustomQTreeWidgetItem([file.get_metadata()["name"]])
+                    icon_bytes = get_file_from_vault(vault_path,file.get_metadata()["icon_data_start"],file.get_metadata()["icon_data_end"])
+                    icon = extract_icon_from_bytes(icon_bytes)
+                    item.set_path(file.get_path()) # the file item must point to where it is.
+                    item.setIcon(0, icon)
+                    item.set_saved_obj(file)
+                    self.set_item_text(item, file)
+                    self.addTopLevelItem(item)
 
         self.resize_columns(50)
         self.setCurrentItem(self.topLevelItem(0))
@@ -247,13 +243,12 @@ class CustomTreeWidget(QTreeWidget):
         """
         if item.text(1) == "Folder" or item.text(1) == "UpOneLevel":
             print(f"Double clicked a folder, '{item.text(0)}', extension: '{item.text(1)}', type: '{type(item.get_saved_obj())}'")
-            child_path = item.get_file_path()
-            if child_path:
-                self.updated_signal.emit(child_path)
-                if self.vaultview:
-                    self.populate_from_header(header_map=self.__header_map, goto_path=child_path,vault_path=self.__vaultpath)
-                else:
-                    self.populate(child_path)
+            child_path = Directory.determine_directory_path(item.get_path(),self.__header_map["directories"])
+            self.updated_signal.emit(child_path)
+            if self.vaultview:
+                self.populate_from_header(header_map=self.__header_map, goto_dir=item.get_path(),vault_path=self.__vaultpath)
+            else:
+                self.populate(child_path) # FIX ME3
         else:
             print(f"Double clicked: '{item.text(0)}', extension: '{item.text(1)}', type: '{type(item.get_saved_obj())}'")
 
@@ -268,7 +263,7 @@ class CustomTreeWidget(QTreeWidget):
             self.setCurrentItem(self.itemAt(event.pos()))
         super().mousePressEvent(event)
         if self.currentItem() and self.currentItem().text(1) not in ["Folder", "UpOneLevel"]:
-            self.clicked_file_signal.emit(self.currentItem().get_file_path())
+            self.clicked_file_signal.emit(self.currentItem().get_path())    # Useless? FIX ME5
 
     def keyPressEvent(self, event : QKeyEvent):
         """Handle Enter Key and Backspace Key press
@@ -277,25 +272,25 @@ class CustomTreeWidget(QTreeWidget):
             event (QKeyEvent): Enter Key clicked
         """
         if event.key() == Qt.Key.Key_Return and self.currentItem():
-            parent_path = self.currentItem().get_file_path()
             if self.currentItem().text(1) in ("Folder", "UpOneLevel"):
-                self.updated_signal.emit(parent_path)
+                the_goto_path = Directory.determine_directory_path(self.currentItem().get_path(),self.__header_map["directories"])
+                self.updated_signal.emit(the_goto_path)
                 if self.vaultview:
-                    self.populate_from_header(header_map=self.__header_map, goto_path=parent_path,vault_path=self.__vaultpath)
+                    self.populate_from_header(header_map=self.__header_map, goto_dir=self.currentItem().get_path(),vault_path=self.__vaultpath)
                 else:
-                    self.populate(parent_path)
+                    self.populate("FIX ME0")
             else:
-                self.clicked_file_signal.emit(parent_path)
+                self.clicked_file_signal.emit("FIX ME1")
         elif event.key() == Qt.Key.Key_Backspace:
             first_item = self.topLevelItem(0)
             if first_item and first_item.text(0) == "..":
                 self.setCurrentItem(first_item)
-                parent_path = first_item.get_file_path()
-                if parent_path:
-                    self.updated_signal.emit(parent_path)
-                    if self.vaultview:
-                        self.populate_from_header(header_map=self.__header_map, goto_path=parent_path,vault_path=self.__vaultpath)
-                    else:
-                        self.populate(parent_path)
+                the_goto_path = first_item.get_path()
+                parent_path = Directory.determine_directory_path(first_item.get_path(),self.__header_map["directories"])
+                self.updated_signal.emit(parent_path)
+                if self.vaultview:
+                    self.populate_from_header(header_map=self.__header_map, goto_dir=the_goto_path,vault_path=self.__vaultpath)
+                else:
+                    self.populate("FIX ME2")
         else:
             super().keyPressEvent(event)

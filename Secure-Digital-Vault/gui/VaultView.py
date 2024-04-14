@@ -2,12 +2,15 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QSta
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1
+from utils.parsers import parse_directory_string
 
 from classes.vault import Vault
+from classes.directory import Directory
 from custom_exceptions.classes_exceptions import MissingKeyInJson, JsonWithInvalidData
 from logger.logging import Logger
 
 from gui.custom_widgets.custom_tree_widget import CustomTreeWidget
+from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_line import CustomLine
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
@@ -105,7 +108,7 @@ class VaultViewWindow(QMainWindow):
         self.tree_widget = CustomTreeWidget(columns=4,vaultview=True, vaultpath=self.__vault.get_vault_path(),
                                            header_map=self.__vault.get_map(), parent=self.centralwidget)
         self.tree_widget.update_columns_with(["Data Created"])
-        self.tree_widget.populate_from_header(self.__vault.get_header()["map"],"/",self.__vault.get_vault_path())
+        self.tree_widget.populate_from_header(self.__vault.get_header()["map"], 0, self.__vault.get_vault_path())
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
         self.vertical_div.addWidget(self.tree_widget)
 
@@ -123,15 +126,33 @@ class VaultViewWindow(QMainWindow):
             path (str): Path inside the vault given by the user
         """
         if not path:
+            return
+
+        success, list_of_dirs = parse_directory_string(path)
+        if not success:
+            self.show_unknown_location_message(path,"The path contains invalid characters")
             return None
-        valid_path = self.tree_widget.populate_from_header(self.__vault.get_map(),path,self.__vault.get_vault_path())
-        if valid_path:
+
+        success, last_level = Directory.determine_if_dir_path_is_valid(list_of_dirs, self.__vault.get_map()["directories"])
+        if not success:
+            self.show_unknown_location_message(path, f"Provided dir has an invalid path, reached level: {last_level}")
+            return None
+
+        if self.tree_widget.populate_from_header(self.__vault.get_map(), last_level, self.__vault.get_vault_path()):
             self.address_bar.setText(path)
         else:
-            message_box = CustomMessageBox(parent=self)
-            message_box.setIcon(QMessageBox.Icon.Warning)
-            message_box.setWindowTitle("Unknown location")
-            message_box.showMessage(f"Could not find the path {path} in the vault!")
+            self.show_unknown_location_message(path,"Failure to populate from header")
+
+    def show_unknown_location_message(self, path: str, reason = None) -> None:
+        """Display a message box for an unknown location.
+
+        Args:
+            path (str): Unknown location
+        """
+        message_box = CustomMessageBox(parent=self)
+        message_box.setIcon(QMessageBox.Icon.Warning)
+        message_box.setWindowTitle("Unknown location")
+        message_box.showMessage(f"Could not find the path {path} in the vault, reason: {reason}")
 
     def open_find_dialog(self):
         """On find button click show dialog.
@@ -139,9 +160,11 @@ class VaultViewWindow(QMainWindow):
         dialog = FindFileDialog(self)
         dialog.exec()
 
-    def open_view_window(self, held_item : CustomTreeWidget):
+    def open_view_window(self, held_item : CustomQTreeWidgetItem):
         """On view button click, show view window.
         """
+        if held_item is None or held_item.get_saved_obj() is None:
+            return None
         self.view_file_window = ViewFileWindow(held_item)
         self.view_file_window.show()
 

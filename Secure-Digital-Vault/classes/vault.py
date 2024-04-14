@@ -144,12 +144,15 @@ class Vault:
             # files, directories, voice_notes
             else:
                 try:
-                    if not isinstance(map[key], list):
+                    if not isinstance(map[key], dict):
                         raise JsonWithInvalidData(f"Value for key '{key}' must be a dict but '{map[key]}' is of type: {type(map[key])}.")
                     else:
                         for value in map[key]:
+                            if not isinstance(value, str):
+                                raise JsonWithInvalidData(f"The '{key}' key must be a str (id) only, but '{value}' is of type: {type(value)}.")
+                        for value in map[key].values():
                             if not isinstance(value, dict):
-                                raise JsonWithInvalidData(f"The '{key}' key must contain a list of dict but '{value}' is of type: {type(value)}.")
+                                raise JsonWithInvalidData(f"The '{key}' key must be of type dict only, but '{value}' is of type: {type(value)}.")
                 except KeyError:
                     raise MissingKeyInJson(f"Key '{key}' does not exist in the 'map' dict!")
 

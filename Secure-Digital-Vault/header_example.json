@@ -1,6 +1,6 @@
 {
     "vault" : {
-        "vault_name" : "name_placeholder",
+        "vault_name" : "Vault",
         "vault_size" : 2048,
         "header_size" : 512,
         "footer_size" : 256,
@@ -17,79 +17,71 @@
         "directory_ids" : [1,2],
         "voice_note_ids" : [1,2],
 
-        "directories" : [
-            {
-                "directory": {
-                    "id" : 1,
-                    "name" : "splendid",
-                    "path" : "/",
-                    "data_created" : 1710020055,
-                    "files" : [1]
-                }
+        "directories" : {
+            "1" : {
+                "id" : 1,
+                "name" : "splendid",
+                "path" : 0,
+                "data_created" : 1710020055,
+                "files" : [2]
             }
             ,
-            {
-                "directory": {
-                    "id" : 2,
-                    "name" : "stuff",
-                    "path" : "/splendid/",
-                    "data_created" : 1710000055,
-                    "files" : [2]
+            "2": {
+                "id" : 2,
+                "name" : "stuff",
+                "path" : 1,
+                "data_created" : 1710000055,
+                "files" : []
+            }
+        },
+
+        "files" : {
+            "1" : {
+                "id" : 1,
+                "size" : 1024,
+                "loc_start" : 1000,
+                "loc_end" : 1024,
+                "checksum" : "0x6cdaf9dd",
+                "file_encrypted" : false,
+                "path" : 0,
+                "metadata" : {
+                    "name" : "Hell No",
+                    "type" : ".mp4",
+                    "data_created" : 1710070055,
+                    "last_modified" : 1710070069,
+                    "icon_data_start": 9434491,
+                    "icon_data_end" : 9447376,
+                    "voice_note_id" : 1
+                }
+            } ,
+            "2" : {
+                "id" : 2,
+                "size" : 1024,
+                "loc_start" : 2000,
+                "loc_end" : 3024,
+                "checksum" : "0x6cxf9dd",
+                "file_encrypted" : false,
+                "path" : 1,
+                "metadata" : {
+                    "name" : "Graves & Jupe - VHS",
+                    "type" : ".mp3",
+                    "data_created" : 1710081055,
+                    "last_modified" : 1710081069,
+                    "icon_data_start": 3665,
+                    "icon_data_end" : 15498,
+                    "voice_note_id" : -1
                 }
             }
-        ],
+        },
 
-        "files" : [
-            {
-                "file" : {
-                    "id" : 1,
-                    "size" : 1024,
-                    "loc_start" : 1000,
-                    "loc_end" : 1024,
-                    "checksum" : "0x6cdaf9dd",
-                    "file_encrypted" : false,
-                    "path" : "/",
-                    "metadata" : {
-                        "name" : "Hell No",
-                        "type" : ".mp4",
-                        "data_created" : 1710070055,
-                        "last_modified" : 1710070069,
-                        "icon_data_start": 9434742,
-                        "icon_data_end" : 9447627,
-                        "voice_note_id" : 1
-                    }
-                }
-            },
-            {
-                "file" : {
-                    "id" : 2,
-                    "size" : 1024,
-                    "loc_start" : 2000,
-                    "loc_end" : 3024,
-                    "checksum" : "0x6cxf9dd",
-                    "file_encrypted" : false,
-                    "path" : "/splendid/",
-                    "metadata" : {
-                        "name" : "Graves & Jupe - VHS",
-                        "type" : ".mp3",
-                        "data_created" : 1710081055,
-                        "last_modified" : 1710081069,
-                        "icon_data_start": 3916,
-                        "icon_data_end" : 15749,
-                        "voice_note_id" : 2
-                    }
-                }
-            }
-        ],
-
-        "voice_notes" : [
-            {
+        "voice_notes" : {
+            "1" : {
                 "id" : 1,
                 "owned_by_file" : 1,
                 "loc_start" : 1030,
                 "loc_end" : 1031,
                 "checksum" : "0x6cdaf9x"
             }
-        ]
+        }
     }
 }
