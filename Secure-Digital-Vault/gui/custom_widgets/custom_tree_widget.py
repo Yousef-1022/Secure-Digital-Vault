@@ -84,6 +84,7 @@ class CustomTreeWidget(QTreeWidget):
         Args:
             path (str): The path of the directory to populate.
         """
+        print(f"Path: '{path}'")
         if not path:
             return
         directory = QDir(path)
@@ -243,12 +244,13 @@ class CustomTreeWidget(QTreeWidget):
         """
         if item.text(1) == "Folder" or item.text(1) == "UpOneLevel":
             print(f"Double clicked a folder, '{item.text(0)}', extension: '{item.text(1)}', type: '{type(item.get_saved_obj())}'")
-            child_path = Directory.determine_directory_path(item.get_path(),self.__header_map["directories"])
-            self.updated_signal.emit(child_path)
             if self.vaultview:
                 self.populate_from_header(header_map=self.__header_map, goto_dir=item.get_path(),vault_path=self.__vaultpath)
+                child_path = Directory.determine_directory_path(item.get_path(),self.__header_map["directories"])
+                self.updated_signal.emit(child_path)
             else:
-                self.populate(child_path) # FIX ME3
+                self.populate(item.get_path())
+                self.updated_signal.emit(item.get_path())
         else:
             print(f"Double clicked: '{item.text(0)}', extension: '{item.text(1)}', type: '{type(item.get_saved_obj())}'")
 
@@ -263,7 +265,7 @@ class CustomTreeWidget(QTreeWidget):
             self.setCurrentItem(self.itemAt(event.pos()))
         super().mousePressEvent(event)
         if self.currentItem() and self.currentItem().text(1) not in ["Folder", "UpOneLevel"]:
-            self.clicked_file_signal.emit(self.currentItem().get_path())    # Useless? FIX ME5
+            self.clicked_file_signal.emit(self.currentItem().get_path())
 
     def keyPressEvent(self, event : QKeyEvent):
         """Handle Enter Key and Backspace Key press
@@ -273,24 +275,26 @@ class CustomTreeWidget(QTreeWidget):
         """
         if event.key() == Qt.Key.Key_Return and self.currentItem():
             if self.currentItem().text(1) in ("Folder", "UpOneLevel"):
-                the_goto_path = Directory.determine_directory_path(self.currentItem().get_path(),self.__header_map["directories"])
-                self.updated_signal.emit(the_goto_path)
                 if self.vaultview:
                     self.populate_from_header(header_map=self.__header_map, goto_dir=self.currentItem().get_path(),vault_path=self.__vaultpath)
+                    the_goto_path = Directory.determine_directory_path(self.currentItem().get_path(),self.__header_map["directories"])
+                    self.updated_signal.emit(the_goto_path)
                 else:
-                    self.populate("FIX ME0")
+                    self.populate(self.currentItem().get_path())
+                    self.updated_signal.emit(self.currentItem().get_path())
             else:
-                self.clicked_file_signal.emit("FIX ME1")
+                self.clicked_file_signal.emit(self.currentItem().get_path())
         elif event.key() == Qt.Key.Key_Backspace:
             first_item = self.topLevelItem(0)
             if first_item and first_item.text(0) == "..":
                 self.setCurrentItem(first_item)
                 the_goto_path = first_item.get_path()
-                parent_path = Directory.determine_directory_path(first_item.get_path(),self.__header_map["directories"])
-                self.updated_signal.emit(parent_path)
                 if self.vaultview:
                     self.populate_from_header(header_map=self.__header_map, goto_dir=the_goto_path,vault_path=self.__vaultpath)
+                    parent_path = Directory.determine_directory_path(first_item.get_path(),self.__header_map["directories"])
+                    self.updated_signal.emit(parent_path)
                 else:
-                    self.populate("FIX ME2")
+                    self.populate(the_goto_path)
+                    self.updated_signal.emit(the_goto_path)
         else:
             super().keyPressEvent(event)

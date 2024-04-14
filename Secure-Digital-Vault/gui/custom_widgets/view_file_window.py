@@ -18,7 +18,7 @@ class ViewFileWindow(QMainWindow):
         # List widget to display items
         self.list_widget = QListWidget(self)
         # TODO destory the window after successful closure.
-        for key, value in self.item.get_saved_obj().get_metadata().items(): # TODO fix if folder is clicked.
+        for key, value in self.item.get_saved_obj().get_metadata().items():
             element = QListWidgetItem(f"{key}: {value}")
             self.list_widget.addItem(element)
 

@@ -21,8 +21,8 @@ header = get_file_from_vault("Vault.vault", header_start, header_end-len(MAGIC_H
 
 
 
-MainWindow = VaultViewWindow(header, "Vault.vault")
-#MainWindow = VaultSearchWindow()
+#MainWindow = VaultViewWindow(header, "Vault.vault")
+MainWindow = VaultSearchWindow()
 #MainWindow = ViewFileWindow()
 
 MainWindow.show()

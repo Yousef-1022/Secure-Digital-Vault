@@ -67,12 +67,12 @@ class VaultSearchWindow(QMainWindow):
 
         # Tree widget -> vertical_div
         self.tree_widget = CustomTreeWidget(columns=4,vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
-        self.tree_widget.populate(current_address) #ayo
+        self.tree_widget.populate(current_address)
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
 
         def drive_dropdown_modify_location():
             drive = self.drive_dropdown.currentText()
-            self.tree_widget.populate(drive) #ayo
+            self.tree_widget.populate(drive)
             self.address_bar.setText(drive)
         self.drive_dropdown.currentIndexChanged.connect(lambda: drive_dropdown_modify_location())
 
@@ -206,7 +206,7 @@ class VaultSearchWindow(QMainWindow):
         current_drive = self.drive_dropdown.currentText()
         self.address_bar.setText(current_drive)
         self.vault_extension_line.setText("")
-        self.tree_widget.populate(current_drive) #ayo
+        self.tree_widget.populate(current_drive)
         self.password_line_edit.get_passwordLine().setText("")
         self.vault_location_line.setText("")
 
@@ -255,7 +255,7 @@ class VaultSearchWindow(QMainWindow):
             if drive == self.drive_dropdown.itemText(i):
                 self.drive_dropdown.setCurrentIndex(i)
                 break
-        self.tree_widget.populate(path) #ayo
+        self.tree_widget.populate(path)
 
     # Button detect handle results
     def handle_detect_vault_result(self, result : str) -> None:
