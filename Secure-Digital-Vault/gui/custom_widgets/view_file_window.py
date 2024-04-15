@@ -53,5 +53,5 @@ class ViewFileWindow(QMainWindow):
 
         # Additional information labels can be added here
         self.setCentralWidget(self.central_widget)
-        # TODO ADD AN INTERFACE FOR THE DIRECTORY AND FILE IN ORDER TO INCLUDE THE REQUIRED FUNCTIONS FOR THE QLIST ITERATOR? maybe.
+
 

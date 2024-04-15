@@ -136,14 +136,15 @@ class VaultSearchWindow(QMainWindow):
         if not is_proper_extension(vault_extension):
             # TODO LOGGER , but is already up
             return None
-        if(not cwd):
+        if not cwd:
             current_directory = os.getcwd()
         else:
             current_directory = cwd
         for root, dirs, files in os.walk(current_directory):
             for file in files:
                 if file.endswith(vault_extension):
-                    return (os.path.join(root, file))
+                    modified_string = os.path.join(root, file).replace("\\", "/")
+                    return modified_string
         return None
 
     # Button detect handle results

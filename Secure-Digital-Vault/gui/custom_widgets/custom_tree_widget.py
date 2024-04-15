@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QTreeWidget, QWidget, QFileIconProvider, QStyle
+from PyQt6.QtWidgets import QTreeWidget, QWidget, QFileIconProvider, QStyle, QMessageBox
 from PyQt6.QtCore import QDir, QFileInfo, Qt , pyqtSignal
 from PyQt6.QtGui import QMouseEvent , QKeyEvent, QIcon
 
@@ -10,6 +10,7 @@ from classes.directory import Directory
 from logger.logging import Logger
 
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
+from gui.custom_widgets.custom_messagebox import CustomMessageBox
 
 
 class CustomTreeWidget(QTreeWidget):
@@ -84,12 +85,15 @@ class CustomTreeWidget(QTreeWidget):
         Args:
             path (str): The path of the directory to populate.
         """
-        print(f"Path: '{path}'")
         if not path:
             return
         directory = QDir(path)
         drive = path[0] + ":\\" # Edge case when drive is only selected, first letter is taken
         if not directory.exists() or (drive not in get_available_drives()) or (len(path) < 3):
+            message_box = CustomMessageBox(parent=self)
+            message_box.setIcon(QMessageBox.Icon.Warning)
+            message_box.setWindowTitle("Unknown location")
+            message_box.showMessage(f"Could not find the path {path} on the system!")
             return
         self.clear()
         directory.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDot)
@@ -140,13 +144,13 @@ class CustomTreeWidget(QTreeWidget):
                     cleard_once = True
                     upper_level = CustomQTreeWidgetItem([".."])
                     upper_level.set_path(Directory.determine_parent_by_id(current_id,header_map["directories"]))    # upper_level leads backwards
-                    # TODO logger if file_path is invalid
                     icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent)
                     upper_level.setText(1, "UpOneLevel")
                     upper_level.setIcon(0, icon)
                     self.addTopLevelItem(upper_level)
 
                 the_directory = Directory(dir)
+                # TODO logger Directory is invalid
                 icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
                 directory_item = CustomQTreeWidgetItem([the_directory.get_name()])
                 directory_item.set_path(the_directory.get_id()) # the item must point to what's inside it.
@@ -173,6 +177,7 @@ class CustomTreeWidget(QTreeWidget):
             for entry in header_map["files"].values():
                 if entry["path"] == goto_dir:
                     file = File(entry)
+                    # TODO logger File is invalid
                     item = CustomQTreeWidgetItem([file.get_metadata()["name"]])
                     icon_bytes = get_file_from_vault(vault_path,file.get_metadata()["icon_data_start"],file.get_metadata()["icon_data_end"])
                     icon = extract_icon_from_bytes(icon_bytes)
