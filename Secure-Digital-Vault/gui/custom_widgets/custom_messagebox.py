@@ -27,14 +27,23 @@ class CustomMessageBox(QMessageBox):
         self.setModal(False)
         self.addButton(QPushButton("OK"), QMessageBox.ButtonRole.AcceptRole)
 
-    def showMessage(self, message : str) -> None:
+    def showMessage(self, message : str, messages : list[str] = None) -> None:
         """
         Display a message in the message box and execute it.
 
         Args:
             message (str): The message to be displayed in the message box.
+            messages(list[str]): The messages to be displayed in the message box.
         """
-        self.setText(message)
+        if message and message != "":
+            self.setText(message)
+        else:
+            self.setText("")
+        if messages is not None:
+            answer = self.text()
+            for m in messages:
+                answer += f"{m}\n"
+            self.setText(answer)
         self.exec()
 
     def exit(self):

@@ -24,11 +24,16 @@ class Logger:
     def error(self, log_message:str):
         self.__log("ERROR", log_message, is_error=True)
 
-    def __log(self, level:str, log_message:str, is_error:bool=False):
+    def attention(self, log_message:str) -> str:
+        return self.__log("ATTENTION", log_message, is_error=False, no_session=True)
+
+    def __log(self, level:str, log_message:str, is_error:bool=False, no_session=False):
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_message = f"{timestamp} [{level}]: Message: {log_message}"
         try:
             with self.__lock:
+                if no_session:
+                    return log_message
                 if is_error:
                     self.__log_session.add_error_log(log_message)
                 else:

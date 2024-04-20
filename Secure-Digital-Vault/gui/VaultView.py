@@ -9,6 +9,7 @@ from classes.directory import Directory
 from custom_exceptions.classes_exceptions import MissingKeyInJson, JsonWithInvalidData
 from logger.logging import Logger
 
+from gui import ViewManager
 from gui.custom_widgets.custom_tree_widget import CustomTreeWidget
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
 from gui.custom_widgets.custom_button import CustomButton
@@ -24,7 +25,7 @@ class VaultViewWindow(QMainWindow):
     # Keep the Insert + CurrentPath on top.
     # Keep the detect logic, it will be used for searching for a file.
     # Settings of the vault, to change password, view vault details, get logs, decrypt vault entirely.
-    def __init__(self, header : bytes, vault_path : str):
+    def __init__(self, header : bytes, vault_path : str, VaultViewManager : ViewManager):
         """VaultViewWindow
 
         Args:
@@ -32,6 +33,8 @@ class VaultViewWindow(QMainWindow):
         """
         super().__init__()
 
+        # Pointer to ViewManager
+        self.__view_manager = VaultViewManager
         # Window Data
         self.__vault = Vault(vault_path)
         try:
@@ -169,3 +172,13 @@ class VaultViewWindow(QMainWindow):
         self.view_file_window.show()
 
     # TODO : add delete later for any Windows that can get opened.
+
+    def exit(self) -> None:
+        """Cleans up any available threads and tries to close them along with the window.
+        """
+        for t in self.threads:
+            t.exit()
+        self.threads.clear()
+        self.hide()
+        self.close()
+        self.destroy()

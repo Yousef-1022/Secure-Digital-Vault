@@ -12,3 +12,10 @@ class CustomLine(QLineEdit):
         super().__init__(parent)
         self.setText(text)
         self.setPlaceholderText(place_holder_text)
+        self.__representing = place_holder_text
+
+    def set_representing(self, value:str) -> None:
+        self.__representing = value
+
+    def get_representing(self) -> str:
+        return self.__representing

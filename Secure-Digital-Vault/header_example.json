@@ -1,14 +1,12 @@
 {
     "vault" : {
         "vault_name" : "Vault",
-        "vault_size" : 2048,
+        "vault_extension" : ".vault",
         "header_size" : 512,
-        "footer_size" : 256,
         "file_size" : 2816,
         "trusted_timestamp" : 1710070050,
         "amount_of_files" : 69,
-        "is_vault_encrypted" : true,
-        "vault_extension" : ".vault"
+        "is_vault_encrypted" : true
     },
 
     "map" : {

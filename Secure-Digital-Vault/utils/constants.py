@@ -3,22 +3,14 @@
 MAGIC_HEADER_START = "@bgnhdr@"
 MAGIC_HEADER_END = "@endhdr@"
 
-MAGIC_MAP_START = "#mapbgn#"
-MAGIC_MAP_END = "#mapend#"
-
-MAGIC_FOOTER_START = "@ftrbgn@"
-MAGIC_FOOTER_END = "@endftr@"
-
-MAGIC_ERROR_LOG_START = "!errbgn!"
-MAGIC_ERROR_LOG_END = "!errend!"
-
-MAGIC_NORMAL_LOG_START = "$bgnlog$"
-MAGIC_NORMAL_LOG_END = "$endlog$"
+MAGIC_LOG_START = "$bgnlog$"
+MAGIC_LOG_END = "$endlog$"
 
 # All keys representing the structure of the vault
 
-VAULT_KEYS = ["vault_name", "vault_size", "header_size", "footer_size", "file_size", "trusted_timestamp", "amount_of_files", "is_vault_encrypted", "vault_extension"]
+VAULT_KEYS = ["vault_name", "vault_extension", "header_size", "file_size", "trusted_timestamp", "amount_of_files", "is_vault_encrypted"]
 MAP_KEYS = ["file_ids", "directory_ids" , "voice_note_ids", "directories", "files", "voice_notes"]
+VAULT_CREATION_KEYS = ["Vault Name" , "Vault Extension", "Vault Location", "Password Hint"]
 
 # All icons
 ICON_1 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon1.png"

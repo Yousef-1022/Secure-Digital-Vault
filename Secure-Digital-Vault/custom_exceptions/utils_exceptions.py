@@ -10,3 +10,9 @@ class ClashedIdException(Exception):
     def __init__(self, message):
         self.message = f"Clashed ID(s) detected during conversion from list to set. {message}"
         super().__init__(self.message)
+
+class MagicFailure(Exception):
+    """Exception when trying to find certain Magic bytes"""
+    def __init__(self, message):
+        self.message = f"MagicFailure: {message}"
+        super().__init__(self.message)

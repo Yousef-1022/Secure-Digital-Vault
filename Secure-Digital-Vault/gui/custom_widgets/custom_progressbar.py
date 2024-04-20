@@ -18,9 +18,10 @@ class CustomProgressBar(QProgressBar):
         self.setValue(current_value)
         self.setVisible(is_visible_at_start)
 
-    def stop_progress(self) -> None:
+    def stop_progress(self, hide : bool = True) -> None:
         """
         Stops the progress and hides the progress bar.
         """
-        self.setVisible(False)
+        if hide:
+            self.setVisible(False)
         self.setValue(0)

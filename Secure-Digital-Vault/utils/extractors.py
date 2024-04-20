@@ -20,12 +20,17 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
     if chunk_size < len(magic_bytes):
         return -1
     with open(vault_path, "rb") as file:
-        file_size = 0
+        # Get File Size
+        file.seek(0, 2)
+        file_size = file.tell()
+
         if start_from_index != -1:
             file.seek(start_from_index)
         elif read_reverse:
             file.seek(0, 2)
-            file_size = file.tell()
+        else:
+            file.seek(0, 0)
+
         while True:
             chunk = None
             position = 0
@@ -43,8 +48,12 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
                 return actual_index
             # Edge case of magic being separated between two chunks.
             if read_reverse:
+                if (file.tell() - chunk_size) == 0:
+                    return -1
                 file.seek(min(position+len(magic_bytes),file_size))
             else:
+                if file.tell() == file_size:
+                    return -1
                 file.seek(max(file.tell()-len(magic_bytes),0))
 
 
