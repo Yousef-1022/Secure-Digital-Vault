@@ -9,18 +9,19 @@ from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
 
 from logger.logging import Logger
-from file_handle.file_io import formulate_header, append_bytes_into_file
+from file_handle.file_io import append_bytes_into_file, add_magic_into_header, header_padder
 
 from utils.constants import VAULT_CREATION_KEYS , ICON_1
-from utils.validators import is_proper_extension, is_location_ok
-from utils.serialization import serialize_dict, add_magic_into_header
+from utils.serialization import serialize_dict, formulate_header
+from utils.helpers import is_proper_extension, is_location_ok
 
 from crypto.utils import is_password_strong
 from crypto.encryptors import encrypt_header
 
+
 class VaultCreateWindow(QMainWindow):
     def __init__(self , VaultViewManager : ViewManager):
-        super().__init__()
+        super().__init__(parent=VaultViewManager)
 
         # Pointer to ViewManager
         self.__view_manager = VaultViewManager
@@ -219,7 +220,7 @@ class VaultCreateWindow(QMainWindow):
         header = encrypt_header(data["Password"], header)
         header = add_magic_into_header(header)
         result = append_bytes_into_file(file_path=data['Vault Location'],the_bytes=header,create_file=True, file_name=vault)
-        #TODO logger + progressbar
+        header_padder(file_path=f"{data['Vault Location']}/{vault}", amount_to_pad=2048) # Initial size ~300*5
         if not result[0]:
             print(result[1])
         else:
@@ -244,12 +245,19 @@ class VaultCreateWindow(QMainWindow):
     def __open_view_manager(self):
         self.__view_manager.signal_to_open_window.emit("")
 
+    def closeEvent(self, event):
+        """Override for close window incase import is running.
+        """
+        if self.__view_manager:
+            self.__view_manager.signal_to_open_window.emit("")
+        super().closeEvent(event)
+
     def exit(self) -> None:
         """Cleans up any available threads and tries to close them along with the window.
         """
+        self.__view_manager = None
         for t in self.threads:
             t.exit()
         self.threads.clear()
         self.hide()
         self.close()
-        self.destroy()

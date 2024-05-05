@@ -65,22 +65,6 @@ def parse_from_string_to_size(size_instr: str) -> int:
                 return -1  # Unable to parse
     return -1  # Unknown suffix
 
-
-def get_available_drives() -> list[str]:
-    """Returns a list of available drives in the system.
-
-    Returns:
-        list: A list of available drives with backslash, e.g., ['C:\\\\', 'D:\\\\', 'E:\\\\'].
-    """
-    drives = []
-    if os.name == 'nt':  # For Windows
-        for letter in string.ascii_uppercase:
-            drive = letter + ':\\'
-            if os.path.exists(drive):
-                drives.append(drive)
-    return drives
-
-
 def parse_timestamp_to_string(timestamp : int) -> str:
     """Parses a timestamp, e.g, 1710050055 to the string reprsentation: DD-MM-YY 00:00
 
@@ -95,7 +79,7 @@ def parse_timestamp_to_string(timestamp : int) -> str:
     return formatted_date_time
 
 def parse_directory_string(dir_path: str) -> tuple[bool, list[str]]:
-    """Parses a directory path name, e.g, /path/to/
+    """Parses a directory path name, e.g, /path/to/somewhere/
 
     Args:
         dir (str): Directory path string
@@ -111,3 +95,39 @@ def parse_directory_string(dir_path: str) -> tuple[bool, list[str]]:
     lst = [e for e in tmp if not any(char in forbidden_names for char in e)]
     len2 = len(lst)
     return (len1 == len2,lst)
+
+def remove_trailing_slash(path : str,  add_slash_to_start : bool = False) -> str:
+    """Removes the trailing slash if possible, e.g, path/folder/ returns path/folder
+
+    Args:
+        path (str): given folder path
+        add_slash_to_start (bool) : adds a slash to the start of the 
+
+    Returns:
+        str: path without the trailing slash
+    """
+    if len(path) == 0:
+        return "/"
+    lst = parse_directory_string(path)
+    if not lst[0]:
+        return "/"
+    res = '/'.join(lst[1])
+    if add_slash_to_start:
+        res = "/" + res
+    return res
+
+def get_last_folder(path : str) -> str:
+    """Returns the last folder in the given path
+
+    Args:
+        path (str): the path
+
+    Returns:
+        str: the last folder
+    """
+    if len(path) == 0:
+        return "/"
+    lst = parse_directory_string(path)
+    if not lst[0]:
+        return "/"
+    return lst[1][-1]

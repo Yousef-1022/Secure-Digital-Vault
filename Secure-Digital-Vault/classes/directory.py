@@ -8,6 +8,7 @@ class Directory:
         self.__id           = data_dict["id"]
         self.__name         = data_dict["name"]
         self.__data_created = data_dict["data_created"]
+        self.__last_modified = data_dict["last_modified"]
         self.__path         = data_dict["path"]
         self.__files        = data_dict["files"]
 
@@ -20,6 +21,9 @@ class Directory:
 
     def set_path(self, path:int) -> None:
         self.__path = path
+
+    def set_last_modified(self, new_date : int) -> None:
+        self.__last_modified = new_date
 
     # Getter methods
     def get_id(self) -> int:
@@ -34,6 +38,9 @@ class Directory:
     def get_data_created(self) -> int:
         return self.__data_created
 
+    def get_last_modified(self) -> int:
+        return self.__last_modified
+
     def get_files(self) -> list:
         return self.__files
 
@@ -42,6 +49,7 @@ class Directory:
             "name": self.__name,
             "type": "Folder",
             "data_created" : self.__data_created,
+            "last_modified" : self.__last_modified,
             "files" : len(self.__files)
         }
 
@@ -57,6 +65,7 @@ class Directory:
             "name": str,
             "path": int,
             "data_created": int,
+            "last_modified": int,
             "files": list
         }
 
@@ -86,59 +95,6 @@ class Directory:
                 if value["id"] == path_id:
                     return value["path"]
         return 0
-
-    @staticmethod
-    def determine_directory_path(path_id: int, data_dict: dict, current_name: str = None) -> str:
-        """Based on the path id , returns the full path name representing the id, e.g: for 2: 'id2 = matter , id1 = splendid' will return: /splendid/matter/
-            This is done recursively, and the given data_dict must be valid. (This is checked beforehand)
-        Args:
-            path_id (int): path id of the directory
-            data_dict (dict): dict containing all the dictionaries
-
-        Returns:
-            str: Name of the directory, "/" If path <= 0
-        """
-        if path_id <= 0:
-            if current_name is None:
-                return "/"
-            return f"/{current_name}/"
-
-        if str(path_id) not in data_dict:
-            if current_name is None:
-                return "/"
-            return f"/{current_name}/"
-
-        parent_name = data_dict[str(path_id)]["name"]
-
-        if current_name is not None:
-            parent_name += f"/{current_name}"
-
-        parent_id = data_dict[str(path_id)]["path"]
-        return Directory.determine_directory_path(parent_id, data_dict, parent_name)
-
-    @staticmethod
-    def determine_if_dir_path_is_valid(dir_names : list, data_dict: dict, level : int = 0) -> tuple[bool,int]:
-        """Based on the name of a dir, tries to determine whether it is a valid path,
-        this function works in harmony with: parse_directory_string
-
-        Args:
-            dir_names (list): A list containing all the dir names, e.g, [path,to,somewhere]
-            data_dict (dict): dict containing all the dictionaries
-            level (int): current level of directory, e.g, /path/to/somewhere path is 1 , to is 2 , somewhere is 3
-
-        Returns:
-            tuple: first part if valid, second part showing the last level
-        """
-        length = len(dir_names)
-        if length < 1:
-            return True,level
-        elif length == 1 and dir_names[0] == "/":
-            return True,0
-        else:
-            for some_dir in data_dict.values():
-                if dir_names[0] == some_dir["name"] and some_dir["path"] == level:
-                    return Directory.determine_if_dir_path_is_valid(dir_names[1:], data_dict, some_dir["id"])
-        return False,level
 
     def add_file(self, file:File) -> bool:
         """Adds the given file into the dictionary.
@@ -172,4 +128,3 @@ class Directory:
                 self.__files.remove(f)
                 return True
         raise FileDoesNotExist(f"File with id {file.get_id()} does not exist in directory {self.__name}")
-

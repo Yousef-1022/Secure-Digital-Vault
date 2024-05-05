@@ -2,6 +2,7 @@ import threading
 import datetime
 from logger.log_session import LogSession
 
+
 class Logger:
     _instance = None
     __lock = threading.Lock()

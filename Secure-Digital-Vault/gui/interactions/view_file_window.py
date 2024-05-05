@@ -4,6 +4,7 @@ from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
 from utils.constants import ICON_1
 
+
 class ViewFileWindow(QMainWindow):
     def __init__(self, item : CustomQTreeWidgetItem = None):
         super().__init__()

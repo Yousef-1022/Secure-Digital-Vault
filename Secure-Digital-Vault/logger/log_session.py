@@ -1,3 +1,5 @@
+
+
 class LogSession:
     """Class to hold logs generated during runtime
     """

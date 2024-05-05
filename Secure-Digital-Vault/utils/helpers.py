@@ -1,5 +1,8 @@
 from custom_exceptions.classes_exceptions import FileError
-import os
+from math import log10
+
+import os, string
+
 
 def is_proper_extension(extension : str, type_of_extension : str = None) -> bool:
     """Checks whether the given string is a valid extension.
@@ -12,10 +15,8 @@ def is_proper_extension(extension : str, type_of_extension : str = None) -> bool
         bool: True if the extension is proper, False otherwise.
     """
     if extension is None or not extension or extension[0] != "." or len(extension) < 2:
-        #TODO logger
         return False
     if extension.count('.') != 1:
-        #TODO logger
         return False
     if type_of_extension is None or not type_of_extension:
         return True
@@ -73,3 +74,52 @@ def is_location_ok(location_path : str, for_file_save : bool = True, for_file_up
         return False, e
     except Exception as e:
         return False,e
+
+def get_file_size(file_path : str) -> tuple[int , str]:
+    """Gets the file size of the given file_path
+
+    Args:
+        file_path (str): File location on the disk
+
+    Returns:
+        tuple[int , str]: tuple , where first value represents the size, second value is for any errors.
+    """
+    result = is_location_ok(file_path, for_file_save=False, for_file_update=True)
+    if not result[0]:
+        return -1 , result[1]
+    the_size = 0
+    try:
+        with open (file_path, "rb") as f:
+            f.seek(0,2)
+            the_size = f.tell()
+    except Exception as e:
+        return -1 , e
+    return the_size, ""
+
+def get_available_drives() -> list[str]:
+    """Returns a list of available drives in the system.
+
+    Returns:
+        list: A list of available drives with backslash, e.g., ['C:\\\\', 'D:\\\\', 'E:\\\\'].
+    """
+    drives = []
+    if os.name == 'nt':  # For Windows
+        for letter in string.ascii_uppercase:
+            drive = letter + ':\\'
+            if os.path.exists(drive):
+                drives.append(drive)
+    return drives
+
+def count_digits(number : int) -> int:
+    """Counts the number of digits of the given number
+
+    Args:
+        number (int): the number
+
+    Returns:
+        int: amount of digits
+    """
+    if number == 0:
+        return 1
+    digits = int(log10(abs(number))) + 1
+    return digits

@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, 
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7
-from utils.validators import is_proper_extension
+from utils.helpers import is_proper_extension
 from logger.logging import Logger
 from crypto.decryptors import decrypt_header
 from custom_exceptions.utils_exceptions import MagicFailure
@@ -20,9 +20,10 @@ from gui.threads.custom_thread import Worker, CustomThread
 
 import os
 
+
 class VaultSearchWindow(QMainWindow):
     def __init__(self, VaultViewManager : ViewManager):
-        super().__init__()
+        super().__init__(parent=VaultViewManager)
 
         # Pointer to ViewManager
         self.__view_manager = VaultViewManager
@@ -72,12 +73,13 @@ class VaultSearchWindow(QMainWindow):
         self.upper_vertical_layout2.addWidget(self.drive_dropdown)
 
         # Tree widget -> vertical_div
-        self.tree_widget = CustomTreeWidget(columns=4,vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
+        self.tree_widget = CustomTreeWidget(columns=5,vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
         self.tree_widget.populate(current_address)
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
 
         def drive_dropdown_modify_location():
             drive = self.drive_dropdown.currentText()
+            self.tree_widget.clear()
             self.tree_widget.populate(drive)
             self.address_bar.setText(drive)
         self.drive_dropdown.currentIndexChanged.connect(lambda: drive_dropdown_modify_location())
@@ -224,6 +226,7 @@ class VaultSearchWindow(QMainWindow):
         current_drive = self.drive_dropdown.currentText()
         self.address_bar.setText(current_drive)
         self.vault_extension_line.setText("")
+        self.tree_widget.clear()
         self.tree_widget.populate(current_drive)
         self.password_line_edit.get_passwordLine().setText("")
         self.vault_location_line.setText("")
@@ -306,6 +309,7 @@ class VaultSearchWindow(QMainWindow):
             if drive == self.drive_dropdown.itemText(i):
                 self.drive_dropdown.setCurrentIndex(i)
                 break
+        self.tree_widget.clear()
         self.tree_widget.populate(path)
 
     # Button detect handle results
@@ -326,7 +330,8 @@ class VaultSearchWindow(QMainWindow):
         except DecryptionFailure as e:
             print(e)
             return # TODO log and hint
-        self.__view_manager.set_special(actual_header)
+        self.__view_manager.set_special_h(actual_header)
+        self.__view_manager.set_special_p(password)
         self.__view_manager.set_vault_pointer(vault_loc)
         self.__view_manager.signal_to_open_window.emit("VaultView")
         return
@@ -334,13 +339,20 @@ class VaultSearchWindow(QMainWindow):
     def __open_view_manager(self):
         self.__view_manager.signal_to_open_window.emit("")
 
+    def closeEvent(self, event):
+        """Override for close window incase import is running.
+        """
+        if self.__view_manager:
+            self.__view_manager.signal_to_open_window.emit("")
+        super().closeEvent(event)
+
     # Cleanup
     def exit(self) -> None:
         """Cleans up any available threads and tries to close them along with the window.
         """
+        self.__view_manager = None
         for t in self.threads:
             t.exit()
         self.threads.clear()
         self.hide()
         self.close()
-        self.destroy()

@@ -14,6 +14,8 @@ def gen_id(lst: list, obj_type: str) -> int:
     Returns:
         int: the ID. If -1 is returned then file limit is reached.
     """
+    if len(lst) == 0:
+        return 1
 
     tmp_set, tmp_cache, clashed_ids = set(), [], []
     for i in lst:

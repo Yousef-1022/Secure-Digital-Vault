@@ -6,6 +6,7 @@ from gui.custom_widgets.custom_line import CustomLine
 
 from utils.constants import ICON_1
 
+
 class FindFileDialog(QDialog):
 
     finished_signal = pyqtSignal(dict)

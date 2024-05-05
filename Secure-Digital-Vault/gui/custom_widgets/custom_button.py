@@ -3,6 +3,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
 
+
 class CustomButton(QPushButton):
     def __init__(self, label: str, icon: QIcon, context_box_text: str, parent: QWidget = None):
         """
@@ -64,9 +65,12 @@ class CustomButton(QPushButton):
         """
         Show details in a custom message box when the button is right-clicked.
         """
-        if (not self.custom_message_box):
+        if not self.custom_message_box:
             self.custom_message_box = CustomMessageBox(title=f"{self.button_label} Button Details", message=self.context_box_text, icon=self.icon(), parent=self)
-        if(not self.custom_message_box.isVisible()):
+        if not self.custom_message_box.isVisible():
+            self.custom_message_box.setWindowTitle(f"{self.button_label} Button Details")
+            self.custom_message_box.setText(self.context_box_text)
+            self.custom_message_box.setWindowIcon(self.icon())
             self.custom_message_box.show()
 
     def exit(self) -> None:

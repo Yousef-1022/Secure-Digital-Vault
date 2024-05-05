@@ -1,4 +1,5 @@
 
+
 def is_password_strong(password : str) -> tuple[bool,list[str]]:
     """Checks whether the given password meets security standards:
     Length >= 6 , Upper Char, Lower Char, a Digit, Special Char
@@ -42,3 +43,15 @@ def xor_magic (magic : str) -> bytes:
     xor_key = [70, 114, 101, 115, 104, 49]
     xored_bytes = bytes([char ^ xor_key[i % len(xor_key)] for i, char in enumerate(magic.encode())])
     return xored_bytes
+
+def get_checksum (file_path : str) -> str:
+    """Gets the checksum of the file
+
+    Args:
+        file_path (str): Original file location
+
+    Returns:
+        str: The check sum
+    """
+    # TODO: Add checksum
+    return "aCheckSum"

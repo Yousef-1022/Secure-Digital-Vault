@@ -1,12 +1,14 @@
-from PyQt6.QtWidgets import QTreeWidget, QWidget, QFileIconProvider, QStyle, QMessageBox
-from PyQt6.QtCore import QDir, QFileInfo, Qt , pyqtSignal
+from PyQt6.QtWidgets import QTreeWidget, QWidget, QFileIconProvider, QStyle, QMessageBox, QApplication
+from PyQt6.QtCore import QDir, QFileInfo, Qt , pyqtSignal, QRect
 from PyQt6.QtGui import QMouseEvent , QKeyEvent, QIcon
 
-from utils.parsers import parse_size_to_string, get_available_drives, parse_timestamp_to_string
+from utils.parsers import parse_size_to_string, parse_timestamp_to_string
 from utils.extractors import get_file_from_vault, extract_icon_from_bytes
+from utils.helpers import get_available_drives
 
 from classes.file import File
 from classes.directory import Directory
+from classes.vault import Vault
 from logger.logging import Logger
 
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
@@ -23,13 +25,14 @@ class CustomTreeWidget(QTreeWidget):
     """
     updated_signal = pyqtSignal(object)
     clicked_file_signal = pyqtSignal(object)
+    marquee_signal = pyqtSignal()
 
-    def __init__(self, columns: int = 4, vaultview : bool = False , vaultpath : str = None, header_map : dict = None, parent: QWidget = None):
+    def __init__(self, columns: int = 5, vaultview : bool = False , vaultpath : str = None, header_map : dict = None, parent: QWidget = None):
         """
         Initialize the custom tree widget.
 
         Args:
-            columns (int): The number of columns for the tree widget. Default is 4.
+            columns (int): The number of columns for the tree widget. Default is 5.
             vaultview (bool): boolean indicating that the tree widget is meant for VaultView
             vaultpath (str): location of the vault on the disk
             header_map(dict): the header_map dictionary
@@ -41,12 +44,15 @@ class CustomTreeWidget(QTreeWidget):
         self.__header_map = header_map
 
         self.setColumnCount(columns)
-        self.headers=["Name", "Type", "Size", "Data Modified"]
+        self.headers=["Name", "Type", "Size", "Data Created", "Data Modified"]
         self.setHeaderLabels(self.headers)
         self.resize_columns(50)
         self.itemDoubleClicked.connect(self.handle_double_clicked)
 
-    def get_vault_path(self):
+        self.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
+        self.__selection_start_pos = None
+
+    def get_vault_path(self) -> str:
         return self.__vaultpath
 
     def update_vaultpath(self, vaultpath : str) -> None:
@@ -96,7 +102,7 @@ class CustomTreeWidget(QTreeWidget):
             message_box.showMessage(f"Could not find the path {path} on the system!")
             return
         self.clear()
-        directory.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDot)
+        directory.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDot | QDir.Filter.NoSymLinks)
         file_icon_provider = QFileIconProvider()
 
         for entry in directory.entryInfoList():
@@ -128,7 +134,7 @@ class CustomTreeWidget(QTreeWidget):
         cleard_once = False # Indicator to clear the tree once, this must be True if the directory is found
         skip_files = False  # Indicator incase the current directory does not have files
 
-        cur_dir_name = Directory.determine_directory_path(path_id=goto_dir, data_dict=header_map["directories"])
+        cur_dir_name = Vault.determine_directory_path(path_id=goto_dir, data_dict=header_map["directories"])
 
         if cur_dir_name == "/":
             self.clear()
@@ -182,6 +188,7 @@ class CustomTreeWidget(QTreeWidget):
                     icon_bytes = get_file_from_vault(vault_path,file.get_metadata()["icon_data_start"],file.get_metadata()["icon_data_end"])
                     icon = extract_icon_from_bytes(icon_bytes)
                     item.set_path(file.get_path()) # the file item must point to where it is.
+                    #TODO: icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent)
                     item.setIcon(0, icon)
                     item.set_saved_obj(file)
                     self.set_item_text(item, file)
@@ -214,7 +221,7 @@ class CustomTreeWidget(QTreeWidget):
                 1: "Folder" if entry.isDir() else entry.completeSuffix(),
                 2: parse_size_to_string(entry.size()),
                 3: entry.lastModified().toString("dd-MMM-yy HH:mm"),
-                4: "PLACEHOLDER"
+                4: entry.birthTime().toString("dd-MMM-yy HH:mm"),
             }
         elif isinstance(entry, File):
             text_mappings = {
@@ -227,7 +234,7 @@ class CustomTreeWidget(QTreeWidget):
             text_mappings = {
                 1: "Folder",
                 2: str(0),
-                3: "",
+                3: parse_timestamp_to_string(entry.get_last_modified()),
                 4: parse_timestamp_to_string(entry.get_data_created())
             }
         if item.text(0) == "..":
@@ -251,7 +258,7 @@ class CustomTreeWidget(QTreeWidget):
             print(f"Double clicked a folder, '{item.text(0)}', extension: '{item.text(1)}', type: '{type(item.get_saved_obj())}'")
             if self.vaultview:
                 self.populate_from_header(header_map=self.__header_map, goto_dir=item.get_path(),vault_path=self.__vaultpath)
-                child_path = Directory.determine_directory_path(item.get_path(),self.__header_map["directories"])
+                child_path = Vault.determine_directory_path(item.get_path(),self.__header_map["directories"])
                 self.updated_signal.emit(child_path)
             else:
                 self.populate(item.get_path())
@@ -268,9 +275,75 @@ class CustomTreeWidget(QTreeWidget):
         """
         if event.button() == Qt.MouseButton.LeftButton or event.button() == Qt.MouseButton.RightButton:
             self.setCurrentItem(self.itemAt(event.pos()))
+            self.__selection_start_pos = event.pos()
+            # If CTRL is clicked
+            modifiers = QApplication.keyboardModifiers()
+            if modifiers == Qt.KeyboardModifier.ControlModifier:
+                item = self.currentItem()
+                if item:
+                    item.setSelected(not item.isSelected())
         super().mousePressEvent(event)
         if self.currentItem() and self.currentItem().text(1) not in ["Folder", "UpOneLevel"]:
             self.clicked_file_signal.emit(self.currentItem().get_path())
+
+    def setSelectionRect(self, rect: QRect):
+        """
+        Sets the selection rectangle for items in the tree widget.
+
+        Parameters:
+            rect (QRect): The rectangle representing the selection area.
+        """
+        for item in self.findItems("", Qt.MatchFlag.MatchContains):
+            item_rect = self.visualItemRect(item)
+            if rect.intersects(item_rect):
+                item.setSelected(True)
+            else:
+                item.setSelected(False)
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        """
+        Handles mouse move event (LeftButton) to set the selection rectangle.
+
+        Parameters:
+            event (QMouseEvent): The mouse event.
+        """
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            if not self.__selection_start_pos:
+                self.__selection_start_pos = event.pos()
+            rect = QRect(self.__selection_start_pos, event.pos()).normalized()
+            self.setSelectionRect(rect)
+        super().mouseMoveEvent(event)
+
+    def getSelectedItems(self) -> list[CustomQTreeWidgetItem]:
+        """Returns all the selected items by the marquee selection.
+
+        Returns:
+            list[CustomQTreeWidgetItem]: List of TreeWidgetItems without the UpOneLevel
+        """
+        selected = []
+        for item in self.selectedItems():
+            if item.text(1) != "UpOneLevel":
+                selected.append(item)
+        return selected
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        """
+        Handles mouse release events to clear the selection rectangle.
+
+        Parameters:
+            event (QMouseEvent): The mouse event.
+        """
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.__selection_start_pos = None
+            self.marquee_signal.emit()
+        super().mouseReleaseEvent(event)
+
+    def selectAllItems(self):
+        """
+        Selects all items in the tree widget.
+        """
+        for item in self.findItems("", Qt.MatchFlag.MatchContains):
+            item.setSelected(True)
 
     def keyPressEvent(self, event : QKeyEvent):
         """Handle Enter Key and Backspace Key press
@@ -282,7 +355,7 @@ class CustomTreeWidget(QTreeWidget):
             if self.currentItem().text(1) in ("Folder", "UpOneLevel"):
                 if self.vaultview:
                     self.populate_from_header(header_map=self.__header_map, goto_dir=self.currentItem().get_path(),vault_path=self.__vaultpath)
-                    the_goto_path = Directory.determine_directory_path(self.currentItem().get_path(),self.__header_map["directories"])
+                    the_goto_path = Vault.determine_directory_path(self.currentItem().get_path(),self.__header_map["directories"])
                     self.updated_signal.emit(the_goto_path)
                 else:
                     self.populate(self.currentItem().get_path())
@@ -296,10 +369,12 @@ class CustomTreeWidget(QTreeWidget):
                 the_goto_path = first_item.get_path()
                 if self.vaultview:
                     self.populate_from_header(header_map=self.__header_map, goto_dir=the_goto_path,vault_path=self.__vaultpath)
-                    parent_path = Directory.determine_directory_path(first_item.get_path(),self.__header_map["directories"])
+                    parent_path = Vault.determine_directory_path(first_item.get_path(),self.__header_map["directories"])
                     self.updated_signal.emit(parent_path)
                 else:
                     self.populate(the_goto_path)
                     self.updated_signal.emit(the_goto_path)
+        elif event.key() == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            self.selectAllItems()
         else:
             super().keyPressEvent(event)

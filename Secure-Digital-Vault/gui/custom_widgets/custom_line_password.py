@@ -3,6 +3,7 @@ from PyQt6.QtGui import QIcon
 from gui.custom_widgets.custom_button import CustomButton
 from utils.constants import ICON_7
 
+
 class CustomPasswordLineEdit(QWidget):
     def __init__(self, placeholder_text: str = None, icon_path: str = None, icon: QIcon = None, parent: QWidget = None):
         """

@@ -20,7 +20,8 @@ class WindowManager(QMainWindow):
         super().__init__()
 
         # Special Data
-        self.__data = None
+        self.__data_h = None
+        self.__data_p = None
         self.__vault_pointer = ""
         self.signal_to_open_window.connect(self.handle_window)
         # Manager Data
@@ -75,8 +76,11 @@ class WindowManager(QMainWindow):
         self.statusbar.setObjectName("statusbar")
         self.setStatusBar(self.statusbar)
 
-    def set_special(self , data : bytes):
-        self.__data = data
+    def set_special_h(self , data : bytes):
+        self.__data_h = data
+
+    def set_special_p(self , data : bytes):
+        self.__data_p = data
 
     def set_vault_pointer(self, file_path : str):
         self.__vault_pointer = file_path
@@ -105,32 +109,53 @@ class WindowManager(QMainWindow):
         if not self.__VaultSearchView:
             self.__VaultSearchView = VaultSearchWindow(self)
         self.__VaultSearchView.show()
-        self.close()
+        self.hide()
 
     def __VaultSearchView_exit(self):
         if self.__VaultSearchView:
+            self.__VaultSearchView.tree_widget.clear()
             self.__VaultSearchView.exit()
+            self.__VaultSearchView.deleteLater()
+            self.__VaultSearchView.destroy(True,True)
             self.__VaultSearchView = None
 
     def __show_VaultCreate(self):
         if not self.__VaultCreateView:
             self.__VaultCreateView = VaultCreateWindow(self)
         self.__VaultCreateView.show()
-        self.close()
+        self.hide()
 
     def __VaultCreateView_exit(self):
         if self.__VaultCreateView:
+            self.__VaultCreateView.item_list_widget.clear()
             self.__VaultCreateView.exit()
+            self.__VaultCreateView.deleteLater()
+            self.__VaultCreateView.destroy(True,True)
             self.__VaultCreateView = None
 
     def __show_VaultView(self):
         if not self.__VaultView:
-            self.__VaultView = VaultViewWindow(self.__data,self.__vault_pointer,self)
+            self.__VaultView = VaultViewWindow(self.__data_h, self.__data_p, self.__vault_pointer)
         self.__VaultView.show()
-        self.close()
+        self.close_self()
 
     def __VaultView_exit(self):
         if self.__VaultView:
+            self.__VaultView.tree_widget.clear()
             self.__VaultView.exit()
+            self.__VaultView.deleteLater()
+            self.__VaultView.destroy(True,True)
             self.__VaultView = None
 
+    def close_self(self):
+        self.__VaultCreateView_exit()
+        self.__VaultSearchView_exit()
+        self.__data_h = None
+        self.__data_p = None
+        self.__vault_pointer = ""
+        for t in self.threads:
+            t.exit()
+        self.threads.clear()
+        self.hide()
+        self.close()
+        self.deleteLater()

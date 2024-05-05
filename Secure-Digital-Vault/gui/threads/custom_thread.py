@@ -1,5 +1,6 @@
 from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer
 
+
 class Worker(QObject):
     finished = pyqtSignal(object)
     progress = pyqtSignal(object)
@@ -26,7 +27,7 @@ class CustomThread(QThread):
     progress = pyqtSignal(int)
     timeout_signal = pyqtSignal(object)
 
-    def __init__(self, allowed_runtime: int = 0, function_name_to_handle : str = None):
+    def __init__(self, allowed_runtime: int = 100, function_name_to_handle : str = None):
         """Constructor for the Thread
 
         Args:
@@ -57,7 +58,7 @@ class CustomThread(QThread):
         """When timeout is reached and the worker did not emit a signal, stop the timer and emit finish signal (Ungraceful exit)
         """
         print(f"handle_timeout called (ungraceful). timer_finished: {self.timer_finished}")
-        if(not self.timer_finished):
+        if not self.timer_finished:
             self.timer_finished = True
             self.timer.stop()
             self.timeout_signal.emit("Not Found")
@@ -74,7 +75,7 @@ class CustomThread(QThread):
             emitted_result (object, optional): _description_. Defaults to None.
         """
         print(f"stop_timer called (graceful). timer_finished: {self.timer_finished}")
-        if(not self.timer_finished):
+        if not self.timer_finished:
             self.timer_finished = True
             self.timer.stop()
             self.timer.deleteLater()
@@ -86,3 +87,6 @@ class CustomThread(QThread):
         self.finished.emit()
         self.requestInterruption()
 
+    def exit(self) -> None:
+        self.stop_timer()
+        return super().exit()

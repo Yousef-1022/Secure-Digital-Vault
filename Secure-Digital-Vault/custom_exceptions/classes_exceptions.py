@@ -1,8 +1,3 @@
-"""
-classes_exceptions.py
-
-Defines custom exceptions which may arise because of any functions from the classes module.
-"""
 
 
 class FileDoesNotExist(Exception):

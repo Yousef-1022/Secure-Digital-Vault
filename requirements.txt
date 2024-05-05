@@ -8,9 +8,11 @@ qt6-applications==6.4.3.2.3
 qt6-tools==6.4.3.1.3
 #pip uninstall click colorama numpy pillow pyqt6-plugins PyQt6-sip  pyqt6-tools python-dotenv qt6-applications qt6-tools PyQt6 PtQt6-Qt6
 # Crypto Libs
+pycryptodome==3.20.0
 
 # Utils
 setuptools==49.2.1
 python-dotenv==1.0.1
 click==8.1.7
 colorama==0.4.6
+wheel==0.43.0

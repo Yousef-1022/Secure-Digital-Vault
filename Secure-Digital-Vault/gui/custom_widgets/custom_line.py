@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QLineEdit, QWidget
 
+
 class CustomLine(QLineEdit):
     def __init__(self, text : str, place_holder_text : str , parent: QWidget = None):
         """QLineEdit extension

@@ -1,5 +1,6 @@
 from custom_exceptions.classes_exceptions import InvalidMetaData, MissingKeyInJson
 
+
 class File:
     """File structure used internally to represent a file within the vault
     """

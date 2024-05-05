@@ -2,6 +2,7 @@
 
 MAGIC_HEADER_START = "@bgnhdr@"
 MAGIC_HEADER_END = "@endhdr@"
+MAGIC_HEADER_PAD = "@padhdr@"
 
 MAGIC_LOG_START = "$bgnlog$"
 MAGIC_LOG_END = "$endlog$"

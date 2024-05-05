@@ -1,8 +1,3 @@
-"""
-utils_exceptions.py
-
-Defines custom exceptions which may arise because of any functions from the util module.
-"""
 
 
 class ClashedIdException(Exception):

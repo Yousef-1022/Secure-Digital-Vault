@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QProgressBar, QWidget
 
+
 class CustomProgressBar(QProgressBar):
     def __init__(self, min_value: int = 0, max_value: int = 100, current_value: int = 0, is_visible_at_start: bool = True, parent: QWidget = None):
         """
