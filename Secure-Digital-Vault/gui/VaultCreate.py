@@ -220,7 +220,7 @@ class VaultCreateWindow(QMainWindow):
         header = encrypt_header(data["Password"], header)
         header = add_magic_into_header(header)
         result = append_bytes_into_file(file_path=data['Vault Location'],the_bytes=header,create_file=True, file_name=vault)
-        header_padder(file_path=f"{data['Vault Location']}/{vault}", amount_to_pad=2048) # Initial size ~300*5
+        header_padder(file_path=f"{data['Vault Location']}/{vault}", amount_to_pad=4096) # buffer size
         if not result[0]:
             print(result[1])
         else:

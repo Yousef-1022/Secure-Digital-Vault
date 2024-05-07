@@ -8,7 +8,7 @@ import os
 
 
 def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, read_reverse: bool = False, chunk_size: int = 4096) -> int:
-    """Finds the magic bytes in existing in the given vault_path. It is required to remove the length of the end magic bytes after caluclating
+    """Finds the magic bytes in the given vault_path. It is required to remove the length of the end magic bytes after caluclating
     both Begin,End , as the index returned is after the magic bytes, e.g., <magic>_
 
     Args:
@@ -60,22 +60,39 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
                     return -1
                 file.seek(max(file.tell()-len(magic_bytes),0))
 
-def find_padded_header_length(vault_path : str) -> int:
+def find_pad_length_of_header(vault_path : str) -> int:
     """Returns the length of the pad in the header
 
     Args:
         vault_path (str): Location of the vault
 
     Returns:
-        int: the length of the padded header.
+        int: the length of the pad for the header.
     """
-    magic_pad = xor_magic(MAGIC_HEADER_PAD)
-    magic_end = xor_magic(MAGIC_HEADER_END)
-    header_pad =   find_magic(vault_path, magic_pad)
-    header_end =   find_magic(vault_path, magic_end)
+    magic_pad  = xor_magic(MAGIC_HEADER_PAD)
+    magic_end  = xor_magic(MAGIC_HEADER_END)
+    header_pad = find_magic(vault_path, magic_pad)
+    header_end = find_magic(vault_path, magic_end) - len(magic_end) # find_magic returns index after magic
     if header_end == -1 or header_pad == -1:
         return -1
     return header_end-header_pad
+
+def find_header_length(vault_path : str) -> int:
+    """Returns the length of the encrypted header on the disk
+
+    Args:
+        vault_path (str): Location of the vault
+
+    Returns:
+        int: the length of the encrypted header
+    """
+    magic_start  = xor_magic(MAGIC_HEADER_START)
+    magic_pad    = xor_magic(MAGIC_HEADER_PAD)
+    header_start = find_magic(vault_path, magic_start)
+    header_pad   = find_magic(vault_path, magic_pad) - len(magic_pad) # find_magic returns index after magic
+    if header_start == -1 or header_pad == -1:
+        return -1
+    return header_pad-header_start
 
 def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bool = False, file_name : str = "") -> tuple[bool,str]:
     """Adds the bytes into the given file. Can be used to insert for the vault itself.

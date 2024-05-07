@@ -8,9 +8,8 @@ from custom_exceptions.classes_exceptions import JsonWithInvalidData, MissingKey
 
 from crypto.encryptors import encrypt_password_storage, encrypt_header
 from crypto.decryptors import decrypt_password_storage
-from crypto.utils import xor_magic
 
-from file_handle.file_io import override_bytes_in_file, add_magic_into_header
+from file_handle.file_io import override_bytes_in_file, add_magic_into_header, header_padder, find_pad_length_of_header, find_header_length
 
 
 class Vault:
@@ -308,10 +307,26 @@ class Vault:
 
     def update_vault_file(self):
         """Updates the vault with the newly encrypted header, and updates the disk.
+        This function should only be called after adding the relevant items into the vault, as it
+        shifts the location of everything.
         """
         header = self.refresh_header(return_it=True)
         header = encrypt_header(self.get_password(), header)
+        encrypted_header_len = len(header)
         header = add_magic_into_header(header, start_only=True, pad_only=True, end_only=False)
+
+        available_padding = find_pad_length_of_header(self.__vault_path)
+        header_on_disk_size = find_header_length(self.__vault_path)
+        print(f"encryped_header_len: {encrypted_header_len}. available_padding: {available_padding} , header_on_disk: {header_on_disk_size}")
+        if (header_on_disk_size+available_padding) <= (encrypted_header_len+32): # 32 extra bytes to account for magic
+            to_pad = abs((encrypted_header_len+32) - (header_on_disk_size+available_padding)) + 4096 # buffer bytes
+            self.__data_index_shifter(to_pad)
+            print(f"Calling header_padder for: {to_pad}")
+            header_padder(file_path=self.__vault_path, amount_to_pad=to_pad) #somelogic
+            # Need to account for extra digit length by data_index_shifter, thus must to re-encrypt header:
+            header = self.refresh_header(return_it=True)
+            header = encrypt_header(self.get_password(), header)    # Cannot avoid encrypting twice for now.
+            header = add_magic_into_header(header, start_only=True, pad_only=True, end_only=False)
         override_bytes_in_file(file_path=self.__vault_path, given_bytes=header, byte_loss=0, chunk_size=65536, at_location=0)
 
     def generate_id(self, type : str) -> int:
@@ -336,3 +351,26 @@ class Vault:
             the_id = gen_id(self.__map["voice_note_ids"], "voice_note_ids")
             self.__insert_voice_note_id(the_id)
         return the_id
+
+    def __data_index_shifter(self, shift_by : int) :
+        """Shifts the data in the header by a given a number. This includes: File location, Voice location, and Icon Location.
+
+        Args:
+            shift_by (int): Amount of bytes to shift by.
+        """
+        # Shifting files location
+        for f_id in self.__map["files"].keys():
+            self.__map["files"][f_id]["loc_start"] += shift_by
+            self.__map["files"][f_id]["loc_end"] += shift_by
+            icon_start = self.__map["files"][f_id]["metadata"]["icon_data_start"]
+            icon_end = self.__map["files"][f_id]["metadata"]["icon_data_end"]
+            if (icon_start > 0) and (icon_end > 0):
+                self.__map["files"][f_id]["metadata"]["icon_data_start"] += shift_by
+                self.__map["files"][f_id]["metadata"]["icon_data_end"] += shift_by
+        # Shifting voice notes location
+        for v_id in self.__map["voice_notes"].keys():
+            icon_start = self.__map["voice_notes"][v_id]["loc_start"]
+            icon_end = self.__map["voice_notes"][v_id]["loc_end"]
+            if (icon_start > 0) and (icon_end > 0):
+                self.__map["voice_notes"][v_id]["loc_start"] += shift_by
+                self.__map["voice_notes"][v_id]["loc_end"] += shift_by

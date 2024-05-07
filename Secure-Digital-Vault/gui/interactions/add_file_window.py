@@ -5,7 +5,6 @@ from PyQt6.QtCore import pyqtSignal
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_6
 from utils.extractors import get_files_and_folders_paths, get_item_info, get_amount_of_files_or_folders
 from logger.logging import Logger
-from file_handle.file_io import header_padder, find_padded_header_length
 
 from crypto.encryptors import get_file_and_encrypt_and_add_to_vault
 from crypto.utils import get_checksum
@@ -231,19 +230,6 @@ class AddFileWindow(QMainWindow):
         # Start import
         self.__lock_or_unlock_all(True)
         self.__import_running.set_value(True)
-
-        available_padding = find_padded_header_length(self.__vault_view.request_vault_path())
-        #TODO: OPTIMIZE BY GIVING LESS SIZE THAN 300 FOR FILE AND 100 FOR FOLDER
-        needed_padding = (file_total * 300) + (folder_total * 100)
-        print(f"Limit: {available_padding*0.75}. But Available: ({available_padding}) - Needed padding: ({needed_padding}) - Files: ({file_total}) - Folders: ({folder_total})")
-        if ceil(available_padding*0.75) < needed_padding:
-            tmp = needed_padding + self.__vault_view.request_vault_size()
-            extra = ceil(tmp*0.5)
-            pad = tmp+extra
-            print(f"Calling header_padder for: {pad}")
-            header_padder(file_path=self.__vault_view.request_vault_path(), amount_to_pad=pad)
-        todo_remove = find_padded_header_length(self.__vault_view.request_vault_path())
-        print(f"NOW AVAILABLE PADDING: {todo_remove}")
 
         self.mythread = CustomThread(allowed_runtime=100,function_name_to_handle="import_items")
         self.threads.append(self.mythread)

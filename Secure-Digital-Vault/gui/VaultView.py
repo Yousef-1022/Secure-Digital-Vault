@@ -239,7 +239,7 @@ class VaultViewWindow(QMainWindow):
         """
         return self.__vault.get_vault_size()
 
-    def request_header_refresh(self):
+    def request_header_refresh(self): # Called by add_file_window or delete
         """Refreshes the header of the vault, and updates the vault on disk
         """
         self.__vault.refresh_header()
