@@ -5,7 +5,6 @@ from utils.constants import ICON_1
 from utils.parsers import parse_directory_string
 
 from classes.vault import Vault
-from classes.directory import Directory
 from custom_exceptions.classes_exceptions import MissingKeyInJson, JsonWithInvalidData
 from logger.logging import Logger
 
@@ -20,10 +19,6 @@ from gui.interactions.add_file_window import AddFileWindow
 
 
 class VaultViewWindow(QMainWindow):
-    # Call The VVW with a constructor that takes an extra parameter which the vault path.
-    # Check the vault path
-    # Keep the Insert + CurrentPath on top.
-    # Keep the detect logic, it will be used for searching for a file.
     # Settings of the vault, to change password, view vault details, get logs, decrypt vault entirely.
     def __init__(self, header : bytes, password : str, vault_path : str):
         """VaultViewWindow
@@ -180,7 +175,7 @@ class VaultViewWindow(QMainWindow):
         """
         if held_item is None or held_item.get_saved_obj() is None:
             return None
-        self.view_file_window = ViewFileWindow(held_item)
+        self.view_file_window = ViewFileWindow(parent=self, item=held_item)
         self.view_file_window.show()
 
     def open_add_file_window(self):

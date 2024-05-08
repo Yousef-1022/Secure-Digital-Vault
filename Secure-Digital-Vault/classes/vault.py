@@ -322,7 +322,7 @@ class Vault:
             to_pad = abs((encrypted_header_len+32) - (header_on_disk_size+available_padding)) + 4096 # buffer bytes
             self.__data_index_shifter(to_pad)
             print(f"Calling header_padder for: {to_pad}")
-            header_padder(file_path=self.__vault_path, amount_to_pad=to_pad) #somelogic
+            header_padder(file_path=self.__vault_path, amount_to_pad=to_pad)
             # Need to account for extra digit length by data_index_shifter, thus must to re-encrypt header:
             header = self.refresh_header(return_it=True)
             header = encrypt_header(self.get_password(), header)    # Cannot avoid encrypting twice for now.

@@ -32,8 +32,7 @@ class AddFileWindow(QMainWindow):
     def __init__(self, TheVaultView : VaultView):
         super().__init__(parent=TheVaultView)
 
-        # Pointer to ViewManager
-        self.__vault_view = TheVaultView
+        # Pointer to VaultView is parent
         self.setFocus()
 
         # Data
@@ -184,8 +183,8 @@ class AddFileWindow(QMainWindow):
     def __open_vault_view(self) -> None:
         """Returns back to the vault view sending a prompt to the vault view to destroy the window.
         """
-        self.__vault_view.show()
-        self.__vault_view.setFocus()
+        self.parent().show()
+        self.parent().setFocus()
         self.exit()
 
     def __import_items(self) -> None:
@@ -198,7 +197,7 @@ class AddFileWindow(QMainWindow):
 
         # Check if path for Vault is valid
         path_vault = self.where_in_vault.text()
-        is_path_ok = self.__vault_view.on_insert_button_clicked(path=path_vault, check_location_only=True)   # Will show a message box
+        is_path_ok = self.parent().on_insert_button_clicked(path=path_vault, check_location_only=True)   # Will show a message box
         if type(is_path_ok) == bool and not is_path_ok: # spaghetti
             return None
         insert_into = is_path_ok[1]
@@ -241,14 +240,19 @@ class AddFileWindow(QMainWindow):
         self.worker.moveToThread(self.mythread)
         self.mythread.started.connect(self.worker.run)
 
-        self.worker.finished.connect(self.mythread.stop_timer)
-        self.worker.finished.connect(self.mythread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
+        def __end_worker_activity(emitted_result):
+            self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
+            self.mythread.quit()
+            self.worker.deleteLater()
+        self.worker.finished.connect(__end_worker_activity)
         #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
-        self.mythread.finished.connect(self.__clean_import)
-        self.mythread.finished.connect(self.__update_header) # After import, the vault must have saved information.
-        self.mythread.finished.connect(self.mythread.quit)
+        def __end_thread_activity():
+            self.__import_running.set_value(False)
+            self.__update_header()  # After import, the vault must have saved information.
+            self.__clean_import()
+            self.mythread.quit()
+        self.mythread.finished.connect(__end_thread_activity)
         #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
         self.import_button.setText("Abort")
@@ -288,6 +292,7 @@ class AddFileWindow(QMainWindow):
     def __clean_import(self) -> None:
         """Cleans the widgets modified after the import operation
         """
+        print("CLEAN")
         self.add_progress_bar.resetFormat()
         self.add_progress_bar.stop_progress(False)
         self.__import_running.set_value(False)
@@ -300,8 +305,9 @@ class AddFileWindow(QMainWindow):
     def __update_header(self) -> None:
         """Refreshes the header, and modifies the vault itself.
         """
-        if self.__vault_view and not self.__import_running.get_value():
-            self.__vault_view.request_header_refresh()
+        if self.parent() and not self.__import_running.get_value():
+            print("Update header called")
+            self.parent().request_header_refresh()
             self.__import_running.set_value(False) # BruteForce
 
     def update_add_progress(self, num_to_update_with : int) -> None:
@@ -348,11 +354,11 @@ class AddFileWindow(QMainWindow):
                 new_id_to_insert_into = 0
                 res = get_item_info(folder[1])
                 #TODO: Handle ID REMOVAL INCASE OF ABORT
-                res["id"] = self.__vault_view.request_new_id("D")
+                res["id"] = self.parent().request_new_id("D")
                 res["path"] = id_to_insert_into
                 new_id_to_insert_into = res["id"]
                 print(f"res[id]: {res['id']} , res[path]: {res['path']}. id_to_insert_into: {id_to_insert_into} , new: {new_id_to_insert_into}")
-                self.__vault_view.insert_item_into_vault(res, "D")
+                self.parent().insert_item_into_vault(res, "D")
                 return_val = self.__process_import(get_files_and_folders_paths(folder[1]), continue_running, recursions, signal, call_num=call_num , id_to_insert_into=new_id_to_insert_into)
                 if not return_val:
                     print("This Must Not Happen: TODO")
@@ -372,11 +378,11 @@ class AddFileWindow(QMainWindow):
                 print(f"Adding: {file[1]} into: {id_to_insert_into}")
                 import time
                 time.sleep(0.3)
-                lst = get_file_and_encrypt_and_add_to_vault(self.__vault_view.request_vault_password(), file[1],
-                                                            self.__vault_view.request_vault_path(), continue_running, 65536)
+                lst = get_file_and_encrypt_and_add_to_vault(self.parent().request_vault_password(), file[1],
+                                                            self.parent().request_vault_path(), continue_running, 65536)
                 res = get_item_info(file[1])
                 # CHECK IF LIST IS EMPTY
-                res["id"] = self.__vault_view.request_new_id("F")
+                res["id"] = self.parent().request_new_id("F")
                 res["size"] = lst[4]
                 res["loc_start"] = lst[0]
                 res["loc_end"] = lst[1]
@@ -386,8 +392,8 @@ class AddFileWindow(QMainWindow):
                 res["path"] = id_to_insert_into
                 if not continue_running.get_value():
                     break
-                self.__vault_view.insert_item_into_vault(res, "F")
-                self.__vault_view.request_file_id_addition_into_folder(id_to_insert_into,res["id"])
+                self.parent().insert_item_into_vault(res, "F")
+                self.parent().request_file_id_addition_into_folder(id_to_insert_into,res["id"])
                 print("INSERTED")
                 # TODO: EXCEPT HANDLE? BECAUSE THREAD?
                 if cntr < progress_increase:
@@ -411,7 +417,6 @@ class AddFileWindow(QMainWindow):
         self.clearFocus()
         self.__import_running.set_value(False)
         self.signal_for_destruction.emit("Destroy")
-        self.__vault_view = None
         for t in self.threads:
             t.exit()
         self.threads.clear()

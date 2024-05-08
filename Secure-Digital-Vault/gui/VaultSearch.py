@@ -192,9 +192,11 @@ class VaultSearchWindow(QMainWindow):
         self.worker.moveToThread(self.mythread)
         self.mythread.started.connect(self.worker.run)
 
-        self.worker.finished.connect(self.mythread.stop_timer)
-        self.worker.finished.connect(self.mythread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
+        def __end_worker_activity(emitted_result):
+            self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
+            self.mythread.quit()
+            self.worker.deleteLater()
+        self.worker.finished.connect(__end_worker_activity)
         #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
         # Progress functions
@@ -272,9 +274,11 @@ class VaultSearchWindow(QMainWindow):
             self.worker.moveToThread(self.mythread)
             self.mythread.started.connect(self.worker.run)
 
-            self.worker.finished.connect(self.mythread.stop_timer)
-            self.worker.finished.connect(self.mythread.quit)
-            self.worker.finished.connect(self.worker.deleteLater)
+            def __end_worker_activity(emitted_result):
+                self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
+                self.mythread.quit()
+                self.worker.deleteLater()
+            self.worker.finished.connect(__end_worker_activity)
             #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
             # Progress functions
@@ -311,15 +315,6 @@ class VaultSearchWindow(QMainWindow):
                 break
         self.tree_widget.clear()
         self.tree_widget.populate(path)
-
-    # Button detect handle results
-    def handle_detect_vault_result(self, result : str) -> None:
-        """Update the vault location line with the emitted value from the sub thread
-
-        Args:
-            result (str): Result is the emitted value from the sub thread searching for the vault in the current directory
-        """
-        self.vault_location_line.setText(result)
 
     def decrypt_given_vault(self, vault_loc : str , password : str):
         try:

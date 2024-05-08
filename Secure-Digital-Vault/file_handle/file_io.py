@@ -238,7 +238,7 @@ def add_magic_into_header(bytes_as_dict: bytes, start_only: bool = True, pad_onl
     return_dict = b''
     if start_only:
         return_dict += xor_magic(MAGIC_HEADER_START)
-    return_dict += bytes_as_dict 
+    return_dict += bytes_as_dict
     if pad_only:
         return_dict += xor_magic(MAGIC_HEADER_PAD)
     if end_only:

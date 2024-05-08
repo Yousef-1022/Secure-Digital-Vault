@@ -2,12 +2,13 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QLis
 from PyQt6.QtGui import QIcon
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
+from gui import VaultView
 from utils.constants import ICON_1
 
 
 class ViewFileWindow(QMainWindow):
-    def __init__(self, item : CustomQTreeWidgetItem = None):
-        super().__init__()
+    def __init__(self, parent : VaultView, item : CustomQTreeWidgetItem):
+        super().__init__(parent)
         self.setWindowTitle("View File")
         self.setMinimumSize(600, 400)
         self.item = item

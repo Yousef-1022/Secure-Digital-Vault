@@ -51,11 +51,14 @@ class CustomThread(QThread):
         if not self.timer_finished:
             self.progress.emit(1)
         else:
-            self.handle_timeout()
+            self.handle_timeout(emit_finish=False)
 
 
-    def handle_timeout(self) -> None:
+    def handle_timeout(self, emit_finish : bool = True) -> None:
         """When timeout is reached and the worker did not emit a signal, stop the timer and emit finish signal (Ungraceful exit)
+
+        Args:
+            emit_finish (bool, optional): if the "finished" signal should be emitted.
         """
         print(f"handle_timeout called (ungraceful). timer_finished: {self.timer_finished}")
         if not self.timer_finished:
@@ -64,15 +67,17 @@ class CustomThread(QThread):
             self.timeout_signal.emit("Not Found")
             self.timer.deleteLater()
             self.progress.emit(100)
-        self.finished.emit()
+        if emit_finish:
+            self.finished.emit()
         self.requestInterruption()
 
 
-    def stop_timer(self, emitted_result : object = None) -> None:
+    def stop_timer(self, emit_finish: bool = True, emitted_result : object = None) -> None:
         """When timeout is not reached and the worker emitted a signal, stop the timer and emit finish signal (Graceful exit)
 
         Args:
-            emitted_result (object, optional): _description_. Defaults to None.
+            emitted_result (object, optional): Defaults to None.
+            emit_finish (bool, optional): if the "finished" signal should be emitted.
         """
         print(f"stop_timer called (graceful). timer_finished: {self.timer_finished}")
         if not self.timer_finished:
@@ -84,9 +89,10 @@ class CustomThread(QThread):
             else:
                 self.timeout_signal.emit(emitted_result)
             self.progress.emit(100)
-        self.finished.emit()
+        if emit_finish:
+            self.finished.emit()
         self.requestInterruption()
 
     def exit(self) -> None:
-        self.stop_timer()
+        self.stop_timer(emit_finish=False)
         return super().exit()
