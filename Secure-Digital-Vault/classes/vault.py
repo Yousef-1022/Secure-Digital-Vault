@@ -165,8 +165,9 @@ class Vault:
 
     def insert_voice_note(self, voice_note_dict : dict):
         self.__map["voice_notes"][str(voice_note_dict["id"])] = voice_note_dict
-        icon_size = voice_note_dict["loc_end"] - voice_note_dict["loc_start"]
-        self.__header["vault"]["file_size"] += icon_size
+        self.__map["files"][str(voice_note_dict["owned_by_file"])]["metadata"]["voice_note_id"] = voice_note_dict["id"]
+        voice_size = voice_note_dict["loc_end"] - voice_note_dict["loc_start"]
+        self.__header["vault"]["file_size"] += voice_size
         self.__header["vault"]["amount_of_files"] += 1 # Counts as a File
 
     # Header Validators
@@ -400,4 +401,26 @@ class Vault:
                     res.append(f)
             else:
                 res.append(f)
+        return res
+
+    def get_id_from_vault(self, the_id : int, type : str) -> tuple[bool,dict]:
+        """Gets the ID from the vault.
+
+        Args:
+            the_id (int): The ID to look for
+            type (str): F for File, D for Folder, V for VoiceNote
+
+        Returns:
+            tuple[bool,dict]: first part if exists, second part the actual dict
+        """
+        res = (False, {})
+        if type == "F":
+            if the_id in self.__map["file_ids"]:
+                res = (True ,self.__map["files"][str(the_id)])
+        elif type == "D":
+            if the_id in self.__map["directory_ids"]:
+                res = (True ,self.__map["directories"][str(the_id)])
+        elif type == "V":
+            if the_id in self.__map["voice_note_ids"]:
+                res = (True ,self.__map["voice_notes"][str(the_id)])
         return res

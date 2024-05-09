@@ -384,7 +384,7 @@ class AddFileWindow(QMainWindow):
                 lst = get_file_and_encrypt_and_add_to_vault(self.parent().request_vault_password(), file[1],
                                                             self.parent().request_vault_path(), continue_running, 65536)
                 res = get_item_info(file[1])
-                # CHECK IF LIST IS EMPTY
+                # TODO: CHECK IF LIST IS EMPTY
                 res["id"] = self.parent().request_new_id("F")
                 res["size"] = lst[4]
                 res["loc_start"] = lst[0]

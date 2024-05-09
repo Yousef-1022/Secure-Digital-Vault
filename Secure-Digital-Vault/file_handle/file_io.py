@@ -94,7 +94,7 @@ def find_header_length(vault_path : str) -> int:
         return -1
     return header_pad-header_start
 
-def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bool = False, file_name : str = "") -> tuple[bool,str]:
+def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bool = False, file_name : str = "") -> tuple[bool,str,int,int]:
     """Adds the bytes into the given file. Can be used to insert for the vault itself.
 
     Args:
@@ -104,14 +104,19 @@ def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bo
         file_name (str) : Option str which is the file name. Used with create_file
 
     Returns:
-        tuple[bool,str]: First value represents True upon success, False otherwise. Second value is if any error raised.
+        tuple[bool,str]: First value represents True upon success, False otherwise.
+        Second value is if any error raised.
+        Third value is the file_size before append.
+        Fourth value is the file_size after append.
     """
     if create_file:
         result = is_location_ok(file_path, for_file_save=create_file, for_file_update=False)
     else:
         result = is_location_ok(file_path, for_file_save=create_file, for_file_update=True)
     if not result[0]:
-        return False , result[1]
+        return (False, result[1], 0,0)
+    init_size = 0
+    new_size = 0
     try:
         amount_of_bytes = len(the_bytes)
         written_bytes = 0
@@ -127,15 +132,16 @@ def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bo
                 written_bytes = f.write(the_bytes)
 
             res = get_file_size(file_path)
+            new_size = res[0]
             if res[0] - init_size != len(the_bytes):
                 raise FileError(f"Old size: {init_size} != New size: {res[0]} - Bytes to append: {amount_of_bytes}, appended: {written_bytes}. {res[1]}")
         if written_bytes != amount_of_bytes:
             raise FileError(f"Appended Failure. Old size: {init_size} != New size: {res[0]} - Bytes to append: {amount_of_bytes}, appended: {written_bytes}. {res[1]}")
-        return True, ""
+        return (True, "", init_size, new_size)
     except FileError as e:
-        return False,e
+        return (False, e, init_size, new_size)
     except Exception as e:
-        return False,e
+        return (False, e, init_size, new_size)
 
 def remove_bytes_from_file(file_path : str, num_bytes : int) -> bool:
     """Removes the specified amount of bytes from the file incase of failure.

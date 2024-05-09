@@ -1,10 +1,13 @@
-from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QStatusBar, QMessageBox, QDialog
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QStatusBar, QMessageBox
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1
 from utils.parsers import parse_directory_string
+from crypto.utils import get_checksum
+from file_handle.file_io import append_bytes_into_file
 
 from classes.vault import Vault
+from classes.voice import Voice
 from custom_exceptions.classes_exceptions import MissingKeyInJson, JsonWithInvalidData
 from logger.logging import Logger
 
@@ -202,6 +205,27 @@ class VaultViewWindow(QMainWindow):
             self.__view_file_window.signal_for_destruction.connect(self.destory_view_file_window)
             self.__view_file_window.show()
         self.clearFocus()
+
+    def add_note_to_vault(self, file_loc : str, extension : str, to_file : int):
+        """On add note button click, start addition process
+
+        Args:
+            file_loc (str): Location of the note
+            extension (str): Extension type
+            to_file (int): The file ID to attach into
+        """
+        file_bytes = None
+        with open (file_loc, "rb") as f:
+            file_bytes = f.read()
+        res = append_bytes_into_file(self.__vault.get_vault_path(), file_bytes)
+        if not res[0]:
+            # TODO: LOGGER
+            print(f"Could not append {file_loc} into the vault because: {res[1]}")
+            return
+        note_id = self.request_new_id("V")
+        the_note = Voice(note_id, to_file, res[2], res[3], extension, get_checksum(file_loc))
+        self.insert_item_into_vault(the_note.get_dict(), "V")
+        self.request_header_refresh()
 
     def destory_view_file_window(self, variable : str):
         """Destorys the view file window and cleans up after it

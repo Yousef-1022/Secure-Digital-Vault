@@ -169,3 +169,14 @@ def extract_icon_from_bytes(icon_bytes : bytes) -> QIcon:
     final_pixmap = QPixmap()
     final_pixmap.loadFromData(pixmap_bytes)
     return QIcon(final_pixmap)
+
+def extract_extension(file_location : str) -> str:
+    """Extracts the extension of the given full name
+
+    Args:
+        file_location (str): Full file location to extract its extension
+
+    Returns:
+        str: Extension
+    """
+    return QFileInfo(file_location).suffix()
