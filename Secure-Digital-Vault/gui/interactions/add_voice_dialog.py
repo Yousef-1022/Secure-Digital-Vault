@@ -5,7 +5,7 @@ from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_line import CustomLine
 from gui import VaultView
 
-from utils.constants import ICON_1
+from utils.constants import ICON_1, NOTE_LIMIT
 from utils.helpers import is_proper_extension, get_file_size
 from utils.parsers import parse_size_to_string
 from utils.extractors import extract_extension
@@ -56,8 +56,8 @@ class AddVoiceDialog(QDialog):
         if res[0] <= 0:
             self.parent().show_message("Invalid file", f"The given location: '{file_location}' is not valid because: '{res[1]}'")
             return
-        if res[0] > 10485760:  # 10 MB limit of a note
-            self.parent().show_message("Too big", f"The given location: '{file_location}' file is not suitable because the size: '{parse_size_to_string(res[0])}' is bigger than: '{parse_size_to_string(10485760)}'!")
+        if res[0] > NOTE_LIMIT:
+            self.parent().show_message("Too big", f"The given location: '{file_location}' file is not suitable because the size: '{parse_size_to_string(res[0])}' is bigger than: '{parse_size_to_string(NOTE_LIMIT)}'!")
             return
         self.hide()
         self.parent().add_note_to_vault(file_location, extension, self.__file_id)

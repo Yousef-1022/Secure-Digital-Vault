@@ -15,6 +15,9 @@ VAULT_CREATION_KEYS = ["Vault Name" , "Vault Extension", "Vault Location", "Pass
 
 # Utils
 TREE_COLUMNS = ["Name", "Type", "Size", "Data Created", "Data Modified"]
+NOTE_LIMIT = 7_340_032   # 7MB
+CHUNK_LIMIT = 52_428_800 # 50MB
+VAULT_BUFFER_LIMIT = 4096
 
 # All icons
 ICON_1 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon1.png"

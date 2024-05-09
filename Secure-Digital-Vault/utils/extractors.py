@@ -1,9 +1,10 @@
 from PyQt6.QtCore import QByteArray, QFileInfo, QBuffer, QSize, QDir
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import QFileIconProvider
+from utils.constants import CHUNK_LIMIT
 
 
-def get_file_from_vault(vault_path:str, starting_byte:int , ending_byte: int, chunk_size_to_read:int=4096):
+def get_file_from_vault(vault_path : str, starting_byte : int , ending_byte : int, chunk_size_to_read : int = CHUNK_LIMIT):
     """Gets raw bytes from vault location on machine
 
     Args:

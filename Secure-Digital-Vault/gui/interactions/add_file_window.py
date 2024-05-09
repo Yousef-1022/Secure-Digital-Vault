@@ -382,7 +382,7 @@ class AddFileWindow(QMainWindow):
                 import time
                 time.sleep(0.3)
                 lst = get_file_and_encrypt_and_add_to_vault(self.parent().request_vault_password(), file[1],
-                                                            self.parent().request_vault_path(), continue_running, 65536)
+                                                            self.parent().request_vault_path(), continue_running)
                 res = get_item_info(file[1])
                 # TODO: CHECK IF LIST IS EMPTY
                 res["id"] = self.parent().request_new_id("F")

@@ -321,7 +321,7 @@ class Vault:
         header_on_disk_size = find_header_length(self.__vault_path)
         print(f"encryped_header_len: {encrypted_header_len}. available_padding: {available_padding} , header_on_disk: {header_on_disk_size}")
         if (header_on_disk_size+available_padding) <= (encrypted_header_len+32): # 32 extra bytes to account for magic
-            to_pad = abs((encrypted_header_len+32) - (header_on_disk_size+available_padding)) + 4096 # buffer bytes
+            to_pad = abs((encrypted_header_len+32) - (header_on_disk_size+available_padding)) + VAULT_BUFFER_LIMIT
             self.__data_index_shifter(to_pad)
             print(f"Calling header_padder for: {to_pad}")
             header_padder(file_path=self.__vault_path, amount_to_pad=to_pad)
@@ -329,7 +329,10 @@ class Vault:
             header = self.refresh_header(return_it=True)
             header = encrypt_header(self.get_password(), header)    # Cannot avoid encrypting twice for now.
             header = add_magic_into_header(header, start_only=True, pad_only=True, end_only=False)
-        override_bytes_in_file(file_path=self.__vault_path, given_bytes=header, byte_loss=0, chunk_size=65536, at_location=0)
+        fd = override_bytes_in_file(file_path=self.__vault_path, given_bytes=header, byte_loss=0, at_location=0)
+        if fd:
+            print(f"Closing: {type(fd)}")
+            fd.close()
 
     def generate_id(self, type : str) -> int:
         """Generates a new ID for either a new file or a new folder or a new voice

@@ -2,12 +2,12 @@ from custom_exceptions.classes_exceptions import FileError
 
 from crypto.utils import xor_magic
 from utils.helpers import get_file_size, is_location_ok
-from utils.constants import MAGIC_HEADER_START, MAGIC_HEADER_END, MAGIC_HEADER_PAD
+from utils.constants import MAGIC_HEADER_START, MAGIC_HEADER_END, MAGIC_HEADER_PAD, CHUNK_LIMIT
 
 import os
 
 
-def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, read_reverse: bool = False, chunk_size: int = 4096) -> int:
+def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, read_reverse: bool = False, chunk_size: int = CHUNK_LIMIT) -> int:
     """Finds the magic bytes in the given vault_path. It is required to remove the length of the end magic bytes after caluclating
     both Begin,End , as the index returned is after the magic bytes, e.g., <magic>_
 
@@ -16,7 +16,7 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
         magic_bytes (bytes): Magic bytes to search (Must be deserialized)
         start_from_index (int): optional Index where to start search from
         read_reverse (bool): optional value to read the file from the ending
-        chunk_size (int, optional): Chunk size to read which has length bigger than Magic. Defaults to 4096.
+        chunk_size (int, optional): Chunk size to read which has length bigger than Magic.
 
     Returns:
         int: Ending Index of the magic bytes. -1 if it does not exist.
@@ -161,7 +161,7 @@ def remove_bytes_from_file(file_path : str, num_bytes : int) -> bool:
         file.truncate()
     return True
 
-def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : int, chunk_size : int = 65536, at_location : int = 0, once : bool = True, fd  = None):
+def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : int, at_location : int = 0, chunk_size : int = CHUNK_LIMIT, once : bool = True, fd  = None):
     """Adds the given bytes at a certain location of the file. Shifting is involved. Can be used to insert to the beginning of the file.
 
     Args:
@@ -174,20 +174,28 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
         of bytes to stuff - the length of what will it override. Use byte_loss = 0 if you want to overrwrite from specific place.
         Use byte_loss=len(byte_loss) to add into at_location without any loss and effectively shift the all bytes to the right.
 
-        chunk_size (int): Chunk size to have in memory
         at_location (int, optional): Index location to start addition from. Defaults to 0.
+        chunk_size (int): Chunk size to have in memory
         once (bool, optional): Boolean to mark the first iteration. MUST NOT BE USED.
         fd: FileDescriptor. MUST NOT BE USED.
+
+        Returns:
+            FileDescriptor (fd): FileDescriptor to be closed by the caller.
     """
     print("overriding")
     if len(given_bytes) == 0:
         print("given_bytes zero quit")
-        return
+        return fd
+
     tmp = get_file_size(file_path)
     if tmp[0] < 0:
+        if fd:
+            fd.close()
         raise FileError(tmp[1])
+
     original_size = tmp[0]
     save_location = at_location
+
     if fd:
         fd.seek(at_location+(len(given_bytes) - byte_loss))
         lost_chunk = fd.read(chunk_size)
@@ -196,23 +204,26 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
         if once:
             fd.write(lost_chunk[:byte_loss])
         save_location = fd.tell()
-    else:   # FIRST TIME TO SAVE OPEN, AS WELL AS ONCE
-        with open (file_path , "rb+") as file:
-            file.seek(at_location+(len(given_bytes) - byte_loss))
-            lost_chunk = file.read(chunk_size)
-            file.seek(at_location)
-            file.write(given_bytes)
-            if once:
-                file.write(lost_chunk[:byte_loss])
-            save_location = file.tell()
+    else:   # FIRST TIME TO SAVE OPEN, SAVE FD AS WELL AS ONCE
+        file = open(file_path , "rb+")
+        file.seek(at_location+(len(given_bytes) - byte_loss))
+        lost_chunk = file.read(chunk_size)
+        file.seek(at_location)
+        file.write(given_bytes)
+        if once:
+            file.write(lost_chunk[:byte_loss])
+        save_location = file.tell()
+    file = fd
     if save_location >= original_size:
         print("save_location quit")
-        return
+        return fd
     if once:
-        override_bytes_in_file(file_path, lost_chunk[byte_loss:], byte_loss, chunk_size, save_location, False)
+        tmp_fd = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk[byte_loss:], byte_loss=byte_loss,
+                               at_location=save_location, chunk_size=chunk_size, once=False, fd=file)
     else:
-        override_bytes_in_file(file_path, lost_chunk, byte_loss, chunk_size, save_location, False)
-    return
+        tmp_fd = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk, byte_loss=byte_loss,
+                               at_location=save_location, chunk_size=chunk_size, once=False, fd=file)
+    return tmp_fd
 
 def header_padder(file_path : str , amount_to_pad : int) -> None:
     """Pads the header with the given amount of padding. This amount is taken from the serialized decrypted header size.
@@ -227,7 +238,10 @@ def header_padder(file_path : str , amount_to_pad : int) -> None:
     xored_pad = xor_magic(MAGIC_HEADER_PAD)
     hdr_pad_loc = find_magic(file_path, xored_pad)
     pad_bytes = os.urandom(amount_to_pad)
-    override_bytes_in_file(file_path=file_path, given_bytes=pad_bytes, byte_loss=len(pad_bytes),chunk_size=65536, at_location=hdr_pad_loc)
+    fd = override_bytes_in_file(file_path=file_path, given_bytes=pad_bytes, byte_loss=len(pad_bytes), at_location=hdr_pad_loc)
+    if fd:
+        print(f"Closing: {type(fd)}")
+        fd.close()
 
 def add_magic_into_header(bytes_as_dict: bytes, start_only: bool = True, pad_only: bool = True, end_only: bool = True) -> bytes:
     """Adds the relevant magic bytes into the serialized and encrypted dict
