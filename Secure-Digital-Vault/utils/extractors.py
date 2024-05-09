@@ -131,7 +131,7 @@ def get_item_info(path : str) -> dict:
     item = QFileInfo(path)
     if item.isDir():
         res["id"] = -1
-        res["name"] = item.fileName()
+        res["name"] = item.fileName() # Allows 'folder.something.v2' naming schemes.
         res["path"] = 0
         res["data_created"] = item.birthTime().toSecsSinceEpoch()
         res["last_modified"] = item.lastModified().toSecsSinceEpoch()
@@ -145,8 +145,8 @@ def get_item_info(path : str) -> dict:
         res["file_encrypted"] = False
         res["path"] = 0
         res["metadata"] = {
-            "name" : item.fileName(),
-            "type" : item.completeSuffix(),
+            "name" : item.completeBaseName(),   # Extracts everything except the extension.
+            "type" : item.suffix(), # The actual extension
             "data_created": item.birthTime().toSecsSinceEpoch(),
             "last_modified" : item.lastModified().toSecsSinceEpoch(),
             "icon_data_start": -1,

@@ -6,6 +6,7 @@ from gui.custom_widgets.custom_line import CustomLine
 from gui import VaultView
 
 from utils.constants import ICON_1
+from utils.helpers import is_proper_extension
 
 
 class FindFileDialog(QDialog):
@@ -29,7 +30,7 @@ class FindFileDialog(QDialog):
 
         # Checkboxes
         self.match_string_checkbox = QCheckBox("Match string case", self)
-        self.skip_encrypted_checkbox = QCheckBox("Skip encrypted", self)
+        self.is_encrypted_checkbox = QCheckBox("Is Encrypted", self)
 
         # Search button
         self.search_button = CustomButton("Search", QIcon(ICON_1), "Search for the given file(s) with the checked parameters" ,self)
@@ -41,7 +42,7 @@ class FindFileDialog(QDialog):
         self.vertical_layout.addWidget(self.extension_label)
         self.vertical_layout.addWidget(self.extension_label_edit)
         self.horizontal_layout.addWidget(self.match_string_checkbox)
-        self.horizontal_layout.addWidget(self.skip_encrypted_checkbox)
+        self.horizontal_layout.addWidget(self.is_encrypted_checkbox)
         self.vertical_layout.addLayout(self.horizontal_layout)
         self.vertical_layout.addWidget(self.search_button)
 
@@ -49,13 +50,11 @@ class FindFileDialog(QDialog):
         extension_text = self.extension_label_edit.text()
         string_name_text = self.find_string_label_edit.text()
         match_string_case = self.match_string_checkbox.isChecked()
-        skip_encrypted = self.skip_encrypted_checkbox.isChecked()
+        is_encrypted = self.is_encrypted_checkbox.isChecked()
 
-        # Perform the search based on the entered text and options
-        print("Searching for string:", string_name_text)
-        print("Searching for extension:", extension_text)
-        print("Match string case:", match_string_case)
-        print("Skip encrypted:", skip_encrypted)
-        # Emit a signal or perform the search action
-        # TODO show the new window of searching for a file.
+        if extension_text == '' and string_name_text == '':
+            self.parent().show_message("Incorrect parameters", "At least an extension or a file name should exist.")
+            return
+        self.hide()
+        self.parent().look_for_given_files(string_name_text, extension_text, match_string_case, is_encrypted)
         self.close()

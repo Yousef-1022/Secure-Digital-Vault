@@ -52,7 +52,7 @@ class VaultViewWindow(QMainWindow):
         self.resize(1024, 768)
 
         # Window References are kept , they go out of scope and are garbage collected, which will destroy the underlying C++ obj.
-        self.view_file_window = None
+        self.__view_file_window = None
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
@@ -106,7 +106,7 @@ class VaultViewWindow(QMainWindow):
 
 
         # Tree widget -> vertical_div
-        self.tree_widget = CustomTreeWidget(columns=5,vaultview=True, vaultpath=self.__vault.get_vault_path(),
+        self.tree_widget = CustomTreeWidget(vaultview=True, vaultpath=self.__vault.get_vault_path(),
                                            header_map=self.__vault.get_map(), parent=self.centralwidget)
         self.tree_widget.populate_from_header(self.__vault.get_header()["map"], 0, self.__vault.get_vault_path())
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
@@ -129,18 +129,19 @@ class VaultViewWindow(QMainWindow):
         Returns:
             bool or Tuple[bool,int]: True if managed to find path, False otherwise. Incase of check_location_only, returns path_id as 2nd part of tuple.
         """
+        msg_path = f"Could not find the path: '{path}' in the vault, "
         if not path:
-            self.show_unknown_location_message(path,"The path is empty")
+            self.show_message("Unknown location", msg_path+"reason: The path is empty")
             return False
 
         success, list_of_dirs = parse_directory_string(path)
         if not success:
-            self.show_unknown_location_message(path,"The path contains invalid characters")
+            self.show_message("Unknown location", msg_path+"reason: The path contains invalid characters")
             return False
 
         success, last_level = self.__vault.determine_if_dir_path_is_valid(list_of_dirs)
         if not success:
-            self.show_unknown_location_message(path, f"Provided dir has an invalid path, reached level: {last_level}")
+            self.show_message("Unknown location", msg_path+f"reason: Provided dir has an invalid path, reached level: {last_level}", "Information")
             return False
 
         if check_location_only:
@@ -150,19 +151,24 @@ class VaultViewWindow(QMainWindow):
             self.address_bar.setText(path)
             return True
         else:
-            self.show_unknown_location_message(path,"Failure to populate from header")
+            self.show_message("Unknown location", msg_path+"reason: Failure to populate from header", "Critical")
             return False
 
-    def show_unknown_location_message(self, path: str, reason = None) -> None:
-        """Display a message box for an unknown location.
+    def show_message(self, window_title : str, message : str, type : str = "Warning"):
+        """Display a message box with the given details.
 
         Args:
-            path (str): Unknown location
+            window_title(str): the title of the message
+            message(str): the message itself
+            type(str) optional: type of the icon to show
         """
         message_box = CustomMessageBox(parent=self)
-        message_box.setIcon(QMessageBox.Icon.Warning)
-        message_box.setWindowTitle("Unknown location")
-        message_box.showMessage(f"Could not find the path {path} in the vault, reason: {reason}")
+        if type not in [enum.name for enum in QMessageBox.Icon]:
+            message_box.setIcon(QMessageBox.Icon.Warning)
+        else:
+            message_box.setIcon(QMessageBox.Icon[type])
+        message_box.setWindowTitle(window_title)
+        message_box.showMessage(message)
 
     def open_find_dialog(self):
         """On find button click show dialog.
@@ -170,13 +176,42 @@ class VaultViewWindow(QMainWindow):
         dialog = FindFileDialog(self)
         dialog.exec()
 
+    def look_for_given_files(self, name : str, extension : str, match_case : bool, is_encrypted : bool):
+        """Looks for the given information about the files in the vault.
+
+        Args:
+            name (str): Name of the file to look for
+            extension (str): The extension of the file
+            match_case (bool): If the search should be exact match_case
+            is_encrypted (bool): Skip if encrypted
+        """
+        files = self.__vault.get_files_with(name, extension, match_case, is_encrypted)
+        if len(files) == 0:
+            self.show_message("Nothing found", f"Any file{' ' if match_case else ' not '}to match case with the name: '{name}{extension}' which its encryption is: '{is_encrypted}' could not be found!")
+            return
+        # TODO: Optimize
+        self.tree_widget.populate_by_request(self.__vault.get_map(), files, self.__vault.get_vault_path())
+
     def open_view_window(self, held_item : CustomQTreeWidgetItem):
         """On view button click, show view window.
         """
         if held_item is None or held_item.get_saved_obj() is None:
             return None
-        self.view_file_window = ViewFileWindow(parent=self, item=held_item)
-        self.view_file_window.show()
+        if not self.__view_file_window:
+            self.__view_file_window = ViewFileWindow(parent=self, item=held_item)
+            self.__view_file_window.signal_for_destruction.connect(self.destory_view_file_window)
+            self.__view_file_window.show()
+        self.clearFocus()
+
+    def destory_view_file_window(self, variable : str):
+        """Destorys the view file window and cleans up after it
+        """
+        if self.__view_file_window is not None and variable == "Destroy":
+            print("Destroying view file window.")
+            self.__view_file_window.list_widget.clear()
+            self.__view_file_window.deleteLater()
+            self.__view_file_window.destroy(True,True)
+            self.__view_file_window = None
 
     def open_add_file_window(self):
         """On add file button click, show AddFileWindow
@@ -194,6 +229,7 @@ class VaultViewWindow(QMainWindow):
             variable (str): Emitted signal, must be 'Destroy'
         """
         if self.__add_file_window is not None and variable == "Destroy":
+            print("Destroying add file window.")
             self.__add_file_window.tree_widget.clear()
             self.__add_file_window.deleteLater()
             self.__add_file_window.destroy(True,True)

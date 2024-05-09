@@ -13,6 +13,9 @@ VAULT_KEYS = ["vault_name", "vault_extension", "header_size", "file_size", "trus
 MAP_KEYS = ["file_ids", "directory_ids" , "voice_note_ids", "directories", "files", "voice_notes"]
 VAULT_CREATION_KEYS = ["Vault Name" , "Vault Extension", "Vault Location", "Password Hint"]
 
+# Utils
+TREE_COLUMNS = ["Name", "Type", "Size", "Data Created", "Data Modified"]
+
 # All icons
 ICON_1 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon1.png"
 ICON_2 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon2.png"

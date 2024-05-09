@@ -73,7 +73,7 @@ class VaultSearchWindow(QMainWindow):
         self.upper_vertical_layout2.addWidget(self.drive_dropdown)
 
         # Tree widget -> vertical_div
-        self.tree_widget = CustomTreeWidget(columns=5,vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
+        self.tree_widget = CustomTreeWidget(vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
         self.tree_widget.populate(current_address)
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
 

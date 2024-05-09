@@ -39,6 +39,7 @@ class AddFileWindow(QMainWindow):
         self.logger = Logger()
         self.threads = []
         self.__import_running = MutableBoolean(False)  # Can be requested to cancel operation
+        self.__signaled_for_destruction = False
         # Window Data
         self.setObjectName("AddFileWindow")
         self.setWindowTitle("Add Content")
@@ -77,7 +78,7 @@ class AddFileWindow(QMainWindow):
         self.upper_vertical_layout2.addWidget(self.drive_dropdown)
 
         # Tree widget -> vertical_div
-        self.tree_widget = CustomTreeWidget(columns=5,vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
+        self.tree_widget = CustomTreeWidget(vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
         self.tree_widget.populate(current_address)
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
         self.tree_widget.marquee_signal.connect(self.modify_amount_of_content)
@@ -105,7 +106,7 @@ class AddFileWindow(QMainWindow):
         # Reset Button , Where In Vault
         self.reset_fields_button = CustomButton("Reset", QIcon(ICON_3), "Reset all fields", self.centralwidget)
         self.reset_fields_button.clicked.connect(self.on_reset_button_clicked)
-        self.where_in_vault = CustomLine(text="", place_holder_text="Where In Vault",parent=self.centralwidget)
+        self.where_in_vault = CustomLine(text="", place_holder_text="Where In Vault, e.g: / or /path/to",parent=self.centralwidget)
         self.bottom_horziontal_sub_layout1.addWidget(self.reset_fields_button)
         self.bottom_horziontal_sub_layout1.addWidget(self.where_in_vault)
 
@@ -185,6 +186,7 @@ class AddFileWindow(QMainWindow):
         """
         self.parent().show()
         self.parent().setFocus()
+        print("Return back to vault view")
         self.exit()
 
     def __import_items(self) -> None:
@@ -286,7 +288,8 @@ class AddFileWindow(QMainWindow):
             message_box.setWindowTitle("Import is running")
             message_box.showMessage("Items are being imported, cannot close this right now. Please cancel operation if needed.")
         else:
-            self.exit()
+            if not self.__signaled_for_destruction:
+                self.exit()
             super().closeEvent(event)
 
     def __clean_import(self) -> None:
@@ -305,7 +308,7 @@ class AddFileWindow(QMainWindow):
     def __update_header(self) -> None:
         """Refreshes the header, and modifies the vault itself.
         """
-        if self.parent() and not self.__import_running.get_value():
+        if not self.__import_running.get_value():
             print("Update header called")
             self.parent().request_header_refresh()
             self.__import_running.set_value(False) # BruteForce
@@ -416,9 +419,10 @@ class AddFileWindow(QMainWindow):
         """
         self.clearFocus()
         self.__import_running.set_value(False)
-        self.signal_for_destruction.emit("Destroy")
+        self.__signaled_for_destruction = True
         for t in self.threads:
             t.exit()
         self.threads.clear()
         self.hide()
+        self.signal_for_destruction.emit("Destroy")
         self.close()

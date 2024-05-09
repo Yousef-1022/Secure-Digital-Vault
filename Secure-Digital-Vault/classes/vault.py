@@ -118,6 +118,7 @@ class Vault:
         Args:
             path_id (int): path id of the directory
             data_dict (dict): dict containing all the dictionaries
+            current_name(str) optional: name of folder.
 
         Returns:
             str: Name of the directory, "/" If path <= 0
@@ -374,3 +375,29 @@ class Vault:
             if (icon_start > 0) and (icon_end > 0):
                 self.__map["voice_notes"][v_id]["loc_start"] += shift_by
                 self.__map["voice_notes"][v_id]["loc_end"] += shift_by
+
+    def get_files_with(self, name : str, extension : str, match_case : bool, is_encrypted : bool) -> list[dict]:
+        """Gets the files with the given description from the vault.
+
+        Args:
+            name (str): File name, can be empty to find by case only
+            extension (str): File extension
+            match_case (bool): Match case of the file name
+            is_encrypted (bool): Grab file according to value
+        """
+        res = []
+        if name == '' and extension == '':
+            return res
+        for f in self.__map["files"].values():
+            # Name check
+            if name != '' and match_case and not (name == f["metadata"]["name"]):
+                continue
+            elif name != '' and not (name.lower() in f["metadata"]["name"].lower()):
+                continue
+            # Extension check. Stored extension doesn't contain the dot.
+            if extension != '':
+                if f["file_encrypted"] == is_encrypted and f["metadata"]["type"] == extension[1:]:
+                    res.append(f)
+            else:
+                res.append(f)
+        return res

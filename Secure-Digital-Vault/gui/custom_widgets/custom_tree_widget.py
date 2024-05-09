@@ -1,10 +1,11 @@
 from PyQt6.QtWidgets import QTreeWidget, QWidget, QFileIconProvider, QStyle, QMessageBox, QApplication
 from PyQt6.QtCore import QDir, QFileInfo, Qt , pyqtSignal, QRect
-from PyQt6.QtGui import QMouseEvent , QKeyEvent, QIcon
+from PyQt6.QtGui import QMouseEvent , QKeyEvent
 
 from utils.parsers import parse_size_to_string, parse_timestamp_to_string
 from utils.extractors import get_file_from_vault, extract_icon_from_bytes
 from utils.helpers import get_available_drives
+from utils.constants import TREE_COLUMNS
 
 from classes.file import File
 from classes.directory import Directory
@@ -27,12 +28,11 @@ class CustomTreeWidget(QTreeWidget):
     clicked_file_signal = pyqtSignal(object)
     marquee_signal = pyqtSignal()
 
-    def __init__(self, columns: int = 5, vaultview : bool = False , vaultpath : str = None, header_map : dict = None, parent: QWidget = None):
+    def __init__(self, vaultview : bool = False , vaultpath : str = None, header_map : dict = None, parent: QWidget = None):
         """
         Initialize the custom tree widget.
 
         Args:
-            columns (int): The number of columns for the tree widget. Default is 5.
             vaultview (bool): boolean indicating that the tree widget is meant for VaultView
             vaultpath (str): location of the vault on the disk
             header_map(dict): the header_map dictionary
@@ -43,10 +43,8 @@ class CustomTreeWidget(QTreeWidget):
         self.__vaultpath = vaultpath
         self.__header_map = header_map
 
-        self.setColumnCount(columns)
-        self.headers=["Name", "Type", "Size", "Data Created", "Data Modified"]
-        self.setHeaderLabels(self.headers)
-        self.resize_columns(50)
+        self.headers=None
+        self.update_columns_with(TREE_COLUMNS)
         self.itemDoubleClicked.connect(self.handle_double_clicked)
 
         self.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
@@ -73,13 +71,12 @@ class CustomTreeWidget(QTreeWidget):
 
 
     def update_columns_with(self, lst : list[str]) -> None:
-        """Updates the tree's columns and column count
+        """Updates the tree's columns and column count with the given list
 
         Args:
             lst (list[str]): List of column headers
         """
-        for header in lst:
-            self.headers.append(header)
+        self.headers=lst
         self.setColumnCount(len(self.headers))
         self.setHeaderLabels(self.headers)
         self.resize_columns(50)
@@ -113,7 +110,7 @@ class CustomTreeWidget(QTreeWidget):
             # Populate additional columns and add the item directly to the tree widget
             self.set_item_text(item, entry)
             self.addTopLevelItem(item)
-        self.resize_columns(50)
+        self.update_columns_with(TREE_COLUMNS)
         self.setCurrentItem(self.topLevelItem(0))
 
     def populate_from_header(self, header_map : dict, goto_dir : int, vault_path : str) -> bool:
@@ -193,8 +190,41 @@ class CustomTreeWidget(QTreeWidget):
                     item.set_saved_obj(file)
                     self.set_item_text(item, file)
                     self.addTopLevelItem(item)
+        self.update_columns_with(TREE_COLUMNS)
+        self.setCurrentItem(self.topLevelItem(0))
+        return True
 
-        self.resize_columns(50)
+    def populate_by_request(self, header_map : dict,  file_dicts : list[dict], vault_path : str) -> bool:
+        """Repopulates the tree with the given dicts
+
+        Args:
+            header_map (dict): map dict from the header
+            file_dicts (list[dict]): The file dicts extracted from the vault
+            vault_path (str): The path to the vault
+
+        Returns:
+            bool: indicates whether the population was valid
+        """
+        self.clear()
+        if "Location" not in self.headers:
+            new_columns = [c for c in self.headers]
+            new_columns.append("Location")
+            self.update_columns_with(new_columns)
+        else:
+            self.update_columns_with(self.headers)
+        for f in file_dicts:
+            file = File(f)
+            # TODO logger File is invalid
+            item = CustomQTreeWidgetItem([file.get_metadata()["name"]])
+            icon_bytes = get_file_from_vault(vault_path,file.get_metadata()["icon_data_start"],file.get_metadata()["icon_data_end"])
+            icon = extract_icon_from_bytes(icon_bytes)
+            item.set_path(file.get_path()) # the file item must point to where it is.
+            #TODO: icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent)
+            item.setIcon(0, icon)
+            item.set_saved_obj(file)
+            item.set_in_vault_location(Vault.determine_directory_path(item.get_path(), header_map["directories"]))
+            self.set_item_text(item, file)
+            self.addTopLevelItem(item)
         self.setCurrentItem(self.topLevelItem(0))
         return True
 
@@ -209,7 +239,7 @@ class CustomTreeWidget(QTreeWidget):
 
     def set_item_text(self, item: CustomQTreeWidgetItem, entry) -> None:
         """
-        Set text and icons for each item in the tree widget based on file information.
+        Set text and icons for each item in the tree widget based on file information. Default mapping is to length of: TREE_COLUMNS
 
         Args:
             item (CustomQTreeWidgetItem): The item to set text and icons for.
@@ -237,6 +267,8 @@ class CustomTreeWidget(QTreeWidget):
                 3: parse_timestamp_to_string(entry.get_last_modified()),
                 4: parse_timestamp_to_string(entry.get_data_created())
             }
+        if self.columnCount() > 5:
+            text_mappings[5] =  item.get_in_vault_location()
         if item.text(0) == "..":
             item.setText(1, "UpOneLevel")
             item.setIcon(0, self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent))

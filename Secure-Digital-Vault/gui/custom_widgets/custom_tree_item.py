@@ -8,6 +8,7 @@ class CustomQTreeWidgetItem(QTreeWidgetItem):
         super().__init__(*args)
         self.__path = 0
         self.__saved_obj = None
+        self.__in_vault_loc = None
 
     def set_path(self, given_path) -> None:
         self.__path = given_path
@@ -20,3 +21,9 @@ class CustomQTreeWidgetItem(QTreeWidgetItem):
 
     def get_saved_obj(self) -> object:
         return self.__saved_obj
+
+    def set_in_vault_location(self, in_vault_loc : str):
+        self.__in_vault_loc = in_vault_loc
+
+    def get_in_vault_location(self) -> str:
+        return self.__in_vault_loc
