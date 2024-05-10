@@ -5,12 +5,15 @@ from classes.file import File
 class Directory:
     def __init__(self, data_dict : dict) -> None:
         self.validate_mapped_data(data_dict)
-        self.__id           = data_dict["id"]
-        self.__name         = data_dict["name"]
-        self.__data_created = data_dict["data_created"]
+        self.__id            = data_dict["id"]
+        self.__name          = data_dict["name"]
+        self.__data_created  = data_dict["data_created"]
         self.__last_modified = data_dict["last_modified"]
-        self.__path         = data_dict["path"]
-        self.__files        = data_dict["files"]
+        self.__path          = data_dict["path"]
+        self.__files         = data_dict["files"]
+
+    def __str__(self) -> str:
+        return f"{self.__name} , Total of files excluding subfolders: {len(self.__files)}"
 
     # Setter methods
     def set_id(self, id:int) -> None:
@@ -19,7 +22,12 @@ class Directory:
     def set_name(self, name:str) -> None:
         self.__name = name
 
-    def set_path(self, path:int) -> None:
+    def set_path(self, path) -> None:
+        """Sets the path of the directory
+
+        Args:
+            path (int|str): Path to set
+        """
         self.__path = path
 
     def set_last_modified(self, new_date : int) -> None:
@@ -32,7 +40,12 @@ class Directory:
     def get_name(self) -> str:
         return self.__name
 
-    def get_path(self) -> int:
+    def get_path(self):
+        """Gets the path of the directory
+
+        Returns:
+            int|str: the path of the Directory
+        """
         return self.__path
 
     def get_data_created(self) -> int:

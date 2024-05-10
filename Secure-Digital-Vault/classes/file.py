@@ -1,4 +1,5 @@
 from custom_exceptions.classes_exceptions import InvalidMetaData, MissingKeyInJson
+from utils.parsers import parse_size_to_string
 
 
 class File:
@@ -14,6 +15,9 @@ class File:
         self.__file_encrypted = file_info["file_encrypted"]
         self.__path           = file_info["path"]
         self.__metadata       = file_info["metadata"]
+
+    def __str__(self) -> str:
+        return f"{self.__metadata['name']}.{self.__metadata['type']} , Size: {parse_size_to_string(self.__size)}, Encrypted: {self.__file_encrypted}"
 
     # Getter methods
     def get_id(self) -> int:
@@ -34,7 +38,12 @@ class File:
     def get_file_encrypted(self) -> bool:
         return self.__file_encrypted
 
-    def get_path(self) -> int:
+    def get_path(self):
+        """Gets the path of the file
+
+        Returns:
+            int|str: the path of the FIle
+        """
         return self.__path
 
     def get_metadata(self) -> dict:
@@ -59,7 +68,12 @@ class File:
     def set_file_encrypted(self, file_encrypted:bool) -> None:
         self.__file_encrypted = file_encrypted
 
-    def set_path(self, path:int) -> None:
+    def set_path(self, path) -> None:
+        """Sets the path of the file
+
+        Args:
+            path (int|str): Path to set
+        """
         self.__path = path
 
     def set_metadata(self, metadata:dict) -> None:

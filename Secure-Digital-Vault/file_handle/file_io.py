@@ -1,3 +1,4 @@
+from PyQt6.QtCore import QDir
 from custom_exceptions.classes_exceptions import FileError
 
 from crypto.utils import xor_magic
@@ -93,6 +94,46 @@ def find_header_length(vault_path : str) -> int:
     if header_start == -1 or header_pad == -1:
         return -1
     return header_pad-header_start
+
+def add_magic_into_header(bytes_as_dict: bytes, start_only: bool = True, pad_only: bool = True, end_only: bool = True) -> bytes:
+    """Adds the relevant magic bytes into the serialized and encrypted dict
+
+    Args:
+        bytes_as_dict (bytes): Serialized and Encrypted dict
+        start_only (bool): If to add HEADER_START only
+        pad_only (bool): If to add HEADER_PAD only
+        end_only (bool): If to add HEADER_END only
+
+    Returns:
+        bytes: Same bytes but with the magic bytes at the beginning, after the dict, and at the end of the dict.
+    """
+    return_dict = b''
+    if start_only:
+        return_dict += xor_magic(MAGIC_HEADER_START)
+    return_dict += bytes_as_dict
+    if pad_only:
+        return_dict += xor_magic(MAGIC_HEADER_PAD)
+    if end_only:
+        return_dict += xor_magic(MAGIC_HEADER_END)
+    return bytes(return_dict)
+
+def header_padder(file_path : str , amount_to_pad : int) -> None:
+    """Pads the header with the given amount of padding. This amount is taken from the serialized decrypted header size.
+
+    Args:
+        file_path (str): Location of the vault
+        amount_to_pad (int): amount of bytes to fill
+    """
+    res = is_location_ok(file_path, for_file_save=False, for_file_update=True)
+    if not res[0]:
+       raise FileError(res[1])
+    xored_pad = xor_magic(MAGIC_HEADER_PAD)
+    hdr_pad_loc = find_magic(file_path, xored_pad)
+    pad_bytes = os.urandom(amount_to_pad)
+    fd = override_bytes_in_file(file_path=file_path, given_bytes=pad_bytes, byte_loss=len(pad_bytes), at_location=hdr_pad_loc)
+    if fd:
+        print(f"Closing: {type(fd)}")
+        fd.close()
 
 def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bool = False, file_name : str = "") -> tuple[bool,str,int,int]:
     """Adds the bytes into the given file. Can be used to insert for the vault itself.
@@ -225,42 +266,14 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
                                at_location=save_location, chunk_size=chunk_size, once=False, fd=file)
     return tmp_fd
 
-def header_padder(file_path : str , amount_to_pad : int) -> None:
-    """Pads the header with the given amount of padding. This amount is taken from the serialized decrypted header size.
+def create_folder_on_disk(path : str) -> bool:
+    """Creates a folder in the given path on the disk
 
     Args:
-        file_path (str): Location of the vault
-        amount_to_pad (int): amount of bytes to fill
-    """
-    res = is_location_ok(file_path, for_file_save=False, for_file_update=True)
-    if not res[0]:
-       raise FileError(res[1])
-    xored_pad = xor_magic(MAGIC_HEADER_PAD)
-    hdr_pad_loc = find_magic(file_path, xored_pad)
-    pad_bytes = os.urandom(amount_to_pad)
-    fd = override_bytes_in_file(file_path=file_path, given_bytes=pad_bytes, byte_loss=len(pad_bytes), at_location=hdr_pad_loc)
-    if fd:
-        print(f"Closing: {type(fd)}")
-        fd.close()
-
-def add_magic_into_header(bytes_as_dict: bytes, start_only: bool = True, pad_only: bool = True, end_only: bool = True) -> bytes:
-    """Adds the relevant magic bytes into the serialized and encrypted dict
-
-    Args:
-        bytes_as_dict (bytes): Serialized and Encrypted dict
-        start_only (bool): If to add HEADER_START only
-        pad_only (bool): If to add HEADER_PAD only
-        end_only (bool): If to add HEADER_END only
+        path (str): The location, e.g, D:\\SomePath\\Location\\
 
     Returns:
-        bytes: Same bytes but with the magic bytes at the beginning, after the dict, and at the end of the dict.
+        bool: True upon success, False otherwise
     """
-    return_dict = b''
-    if start_only:
-        return_dict += xor_magic(MAGIC_HEADER_START)
-    return_dict += bytes_as_dict
-    if pad_only:
-        return_dict += xor_magic(MAGIC_HEADER_PAD)
-    if end_only:
-        return_dict += xor_magic(MAGIC_HEADER_END)
-    return bytes(return_dict)
+    dir = QDir(path)
+    return dir.mkpath(path)

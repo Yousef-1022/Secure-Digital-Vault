@@ -24,7 +24,7 @@ from math import ceil, floor
 
 import os
 
-
+# Can be used for both files and folders.
 class AddFileWindow(QMainWindow):
 
     signal_for_destruction = pyqtSignal(str)
@@ -128,11 +128,8 @@ class AddFileWindow(QMainWindow):
         self.bottom_vertical_layout.addLayout(self.bottom_horziontal_sub_layout3)
         self.vertical_div.addLayout(self.bottom_vertical_layout)
 
-        # Unknown
+        # Additional information labels can be added here
         self.setCentralWidget(self.centralwidget)
-        self.statusbar = QStatusBar(self)
-        self.statusbar.setObjectName("statusbar")
-        self.setStatusBar(self.statusbar)
 
     # Button insert handle results
     def on_insert_button_clicked(self, path : str) -> None:

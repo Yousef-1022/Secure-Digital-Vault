@@ -1,5 +1,4 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QCheckBox, QLabel, QHBoxLayout
-from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QIcon
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_line import CustomLine
@@ -10,8 +9,6 @@ from utils.helpers import is_proper_extension
 
 
 class FindFileDialog(QDialog):
-
-    finished_signal = pyqtSignal(dict)
 
     def __init__(self, parent: VaultView):
         super().__init__(parent)
@@ -55,6 +52,10 @@ class FindFileDialog(QDialog):
         if extension_text == '' and string_name_text == '':
             self.parent().show_message("Incorrect parameters", "At least an extension or a file name should exist.")
             return
+        elif not is_proper_extension(extension_text):
+            self.parent().show_message("Invalid extension", f"The given extension {extension_text} is not a valid extension!")
+            return
+
         self.hide()
-        self.parent().look_for_given_files(string_name_text, extension_text, match_string_case, is_encrypted)
+        self.parent().request_given_files(string_name_text, extension_text, match_string_case, is_encrypted)
         self.close()

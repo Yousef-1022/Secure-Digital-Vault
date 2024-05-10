@@ -1,3 +1,4 @@
+from utils.parsers import parse_size_to_string
 
 
 class Voice:
@@ -10,6 +11,9 @@ class Voice:
         self.__loc_end   = end_loc
         self.__extension = extension
         self.__checksum  = checksum
+
+    def __str__(self) -> str:
+        return f"Note of type: {self.__extension}, Size: {parse_size_to_string(self.__loc_end-self.__loc_start)}"
 
     def get_id(self) -> int:
         return self.__id

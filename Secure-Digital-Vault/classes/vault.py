@@ -4,6 +4,7 @@ from utils.id_gen import gen_id
 from utils.serialization import serialize_dict
 from utils.helpers import count_digits
 
+from classes.file import File
 from custom_exceptions.classes_exceptions import JsonWithInvalidData, MissingKeyInJson
 
 from crypto.encryptors import encrypt_password_storage, encrypt_header
@@ -427,3 +428,62 @@ class Vault:
             if the_id in self.__map["voice_note_ids"]:
                 res = (True ,self.__map["voice_notes"][str(the_id)])
         return res
+
+    def get_name_of_id(self, the_id : int, type : str) -> str:
+        """Gets the name of the given id
+
+        Args:
+            the_id (int): The id to look for
+            ttype (str): F for File, D for Folder
+
+        Returns:
+            str: Name of the id
+        """
+        res = ''
+        if type == "F":
+            if the_id in self.__map["file_ids"]:
+                res = self.__map["files"][str(the_id)]["metadata"]["name"]
+        elif type == "D":
+            if the_id in self.__map["directory_ids"]:
+                res = self.__map["directories"][str(the_id)]["name"]
+        return res
+
+    def get_full_path(self, the_id: int) -> str:
+        """Gets the full path of the given folder id
+
+        Args:
+            the_id (int): The folder id to get its full path.
+
+        Returns:
+            str: Full path, e.g /path/to/
+        """
+        return Vault.determine_directory_path(the_id, self.__map["files"])
+
+    def get_files_belonging_in_id(self, folder_id : int, get_path_as_int : bool = True, parent_folder_name : str = None) -> list[File]:
+        """Gets all the files existing in the given folder id, this includes subfolders
+
+        Args:
+            folder_id (int): The id of the folder
+            get_path_as_int (bool) optional: Whether to keep the File path as default, or Path id. If False, it overrides the set_path to a str of path
+            parent_folder_name (str) optional: To add the the parent folder name into the already available path
+
+        Returns:
+            list[File]: List of File class
+        """
+        # Files:
+        file_list = self.__map["directories"][str(folder_id)]["files"]
+        files = []
+        for file_id in file_list:
+            f = File(self.__map["files"][str(file_id)])
+            if not get_path_as_int:
+                path_to_set = f'{parent_folder_name+"/" if parent_folder_name else "/"}'
+                f.set_path(path_to_set)
+            files.append(f)
+
+        # Folders:
+        if folder_id in self.__map["directory_ids"]:
+            for folder in self.__map["directories"].values():
+                if folder["path"] == folder_id:
+                    res = self.get_files_belonging_in_id(folder["id"], get_path_as_int, f'{parent_folder_name+"/" if parent_folder_name else ""}{folder["name"]}')
+                    files.extend(res)
+        return files

@@ -1,5 +1,4 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QHBoxLayout
-from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QIcon
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_line import CustomLine
@@ -12,8 +11,6 @@ from utils.extractors import extract_extension
 
 
 class AddVoiceDialog(QDialog):
-
-    finished_signal = pyqtSignal(dict)
 
     def __init__(self, file_id : int, parent: VaultView):
         super().__init__(parent)

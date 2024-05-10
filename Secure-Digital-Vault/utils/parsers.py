@@ -96,6 +96,20 @@ def parse_directory_string(dir_path: str) -> tuple[bool, list[str]]:
     len2 = len(lst)
     return (len1 == len2,lst)
 
+def show_as_windows_directory(dir_path : str) -> str:
+    """Parses a valid directory path, e.g, D:/path/to/somewhere/ , and returns a windows format style location
+
+    Args:
+        dir_path (str): Directory path string without the drive
+
+    Returns:
+        str: Parsed Directory as Windows likes, e.g, D:\\path\\to\\somewhere\\
+    """
+    tmp = dir_path.replace('\\', '/')
+    tmp = [folder for folder in tmp.split("/") if folder != '']
+    res = '\\'.join(tmp) + '\\'
+    return res
+
 def remove_trailing_slash(path : str,  add_slash_to_start : bool = False) -> str:
     """Removes the trailing slash if possible, e.g, path/folder/ returns path/folder
 

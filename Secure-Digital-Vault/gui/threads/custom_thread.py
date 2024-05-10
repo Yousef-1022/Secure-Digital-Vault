@@ -4,6 +4,7 @@ from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer
 class Worker(QObject):
     finished = pyqtSignal(object)
     progress = pyqtSignal(object)
+    interaction = pyqtSignal(object)
 
     def __init__(self, function, *args, **kwargs):
         super().__init__()
@@ -38,12 +39,21 @@ class CustomThread(QThread):
         self.timeout = allowed_runtime*1000 # allowed time to run in seconds
         self.handled_function = function_name_to_handle
 
+        # Create a singleshot timer to reach the max allowed runtime
         self.timer_finished = False
-        self.timer = QTimer(self)
-        self.timer.singleShot(self.timeout,self.handle_timeout)
-        self.timer.timeout.connect(self.update_progress)
-        self.timer.start(allowed_runtime*10)   # Used for emitting a progress signal every ~100ms
+        self.timer_singleshot = QTimer(self)
+        self.timer_singleshot.setSingleShot(True)
+        self.timer_singleshot.timeout.connect(self.handle_timeout)
 
+        # Create a normal timer for emitting a progress signal every ~100ms
+        self.timer_normal = QTimer(self)
+        self.timer_normal.timeout.connect(self.update_progress)
+
+        if self.timeout != 0:
+            self.timer_singleshot.start(self.timeout)
+            self.timer_normal.start(allowed_runtime*10) # ~100ms
+        else:
+            self.timer_normal.start(allowed_runtime*100) # ~1000ms
 
     def update_progress(self) -> None:
         """Emits a progress signal with the value 1 every (self.timeout*10) milisecond. Approx ~ every 100ms
@@ -63,9 +73,8 @@ class CustomThread(QThread):
         print(f"handle_timeout called (ungraceful). timer_finished: {self.timer_finished}")
         if not self.timer_finished:
             self.timer_finished = True
-            self.timer.stop()
+            self.__clean_up_timers()
             self.timeout_signal.emit("Not Found")
-            self.timer.deleteLater()
             self.progress.emit(100)
         if emit_finish:
             self.finished.emit()
@@ -82,8 +91,7 @@ class CustomThread(QThread):
         print(f"stop_timer called (graceful). timer_finished: {self.timer_finished}")
         if not self.timer_finished:
             self.timer_finished = True
-            self.timer.stop()
-            self.timer.deleteLater()
+            self.__clean_up_timers()
             if emitted_result is None:
                 self.timeout_signal.emit("Not Found")
             else:
@@ -93,6 +101,15 @@ class CustomThread(QThread):
             self.finished.emit()
         self.requestInterruption()
 
+    def __clean_up_timers(self) -> None:
+        """Cleans up the timers by stopping them, and then deleting them.
+        """
+        self.timer_normal.stop()
+        self.timer_normal.deleteLater()
+        self.timer_singleshot.stop()
+        self.timer_singleshot.deleteLater()
+
     def exit(self) -> None:
-        self.stop_timer(emit_finish=False)
+        if not self.timer_finished:
+            self.stop_timer(emit_finish=False)
         return super().exit()

@@ -79,7 +79,7 @@ def get_files_and_folders_paths(path : str) -> list[tuple[str,str]]:
     return result
 
 def get_amount_of_files_or_folders(path : str, subfolders : bool = True, include_files : bool = True, include_folders : bool = True):
-    """Returns the amount of files and subfolders if requested in the given path using recursion
+    """Returns the amount of files and subfolders if requested in the given path using recursion, this is on Disk.
 
     Args:
         path (str): path to search
