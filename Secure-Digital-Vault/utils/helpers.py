@@ -1,7 +1,7 @@
 from custom_exceptions.classes_exceptions import FileError
 from math import log10
 
-import os, string
+import os, string, gc
 
 
 def is_proper_extension(extension : str, type_of_extension : str = None) -> bool:
@@ -116,3 +116,14 @@ def count_digits(number : int) -> int:
         return 1
     digits = int(log10(abs(number))) + 1
     return digits
+
+def force_garbage_collect() -> tuple[int,int]:
+    """Forces garbage collection
+
+    Returns:
+        tuple[int,int]: Tuple, first value is amount of objects before collection, and second value is after collection
+    """
+    before = len(gc.get_objects())
+    gc.collect()
+    after = len(gc.get_objects())
+    return before,after

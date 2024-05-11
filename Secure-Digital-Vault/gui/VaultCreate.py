@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QStatusBar, QListWidget, QListWidgetItem, QLabel, QLineEdit, QProgressBar, QMessageBox
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QListWidget, QListWidgetItem, QLabel, QLineEdit, QMessageBox
 from PyQt6.QtGui import QIcon
 
 from gui import ViewManager
@@ -20,7 +20,7 @@ from crypto.encryptors import encrypt_header
 
 class VaultCreateWindow(QMainWindow):
     def __init__(self , VaultViewManager : ViewManager):
-        super().__init__(parent=VaultViewManager)
+        super().__init__()
 
         # Pointer to ViewManager
         self.__view_manager = VaultViewManager
@@ -111,10 +111,8 @@ class VaultCreateWindow(QMainWindow):
         self.main_layout.addWidget(self.progress_bar)
 
 
+        # Additional information labels can be added here
         self.setCentralWidget(self.centralwidget)
-        self.statusbar = QStatusBar(self)
-        self.statusbar.setObjectName("statusbar")
-        self.setStatusBar(self.statusbar)
 
     def save_or_edit(self):
         """Function used to save the data available in the list in order not allow modification.
@@ -253,6 +251,7 @@ class VaultCreateWindow(QMainWindow):
         """
         if self.__view_manager:
             self.__view_manager.signal_to_open_window.emit("")
+        self.exit()
         super().closeEvent(event)
 
     def exit(self) -> None:

@@ -5,7 +5,6 @@ from gui.custom_widgets.custom_line import CustomLine
 from gui import VaultView
 
 from utils.constants import ICON_1
-from utils.helpers import is_proper_extension
 
 
 class FindFileDialog(QDialog):

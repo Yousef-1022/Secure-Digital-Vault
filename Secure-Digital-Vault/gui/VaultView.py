@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QStatusBar, QMessageBox
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QMessageBox
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1
@@ -120,11 +120,8 @@ class VaultViewWindow(QMainWindow):
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
         self.vertical_div.addWidget(self.tree_widget)
 
-        # Unknown
+        # Additional information labels can be added here
         self.setCentralWidget(self.centralwidget)
-        self.statusbar = QStatusBar(self)
-        self.statusbar.setObjectName("statusbar")
-        self.setStatusBar(self.statusbar)
 
     # Button insert handle results
     def on_insert_button_clicked(self, path : str, check_location_only : bool = False):
@@ -323,7 +320,7 @@ class VaultViewWindow(QMainWindow):
 
         Args:
             name (str): Name of the file to look for
-            extension (str): The extension of the file
+            extension (str): The extension of the file which is checked before hand
             match_case (bool): If the search should be exact match_case
             is_encrypted (bool): Skip if encrypted
         """

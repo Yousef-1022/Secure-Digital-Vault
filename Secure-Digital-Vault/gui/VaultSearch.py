@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, QStatusBar, QWidget
+from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, QWidget
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7
@@ -24,7 +24,7 @@ import os
 
 class VaultSearchWindow(QMainWindow):
     def __init__(self, VaultViewManager : ViewManager):
-        super().__init__(parent=VaultViewManager)
+        super().__init__()
 
         # Pointer to ViewManager
         self.__view_manager = VaultViewManager
@@ -132,12 +132,8 @@ class VaultSearchWindow(QMainWindow):
         self.bottom_vertical_layout1.addLayout(self.bottom_horziontal_sub_layout3)
         self.vertical_div.addLayout(self.bottom_vertical_layout1)
 
-        # Unknown
+        # Additional information labels can be added here
         self.setCentralWidget(self.centralwidget)
-        self.statusbar = QStatusBar(self)
-        self.statusbar.setObjectName("statusbar")
-        self.setStatusBar(self.statusbar)
-
 
     # Button click handlers
     def detect_vault(self, vault_extension: str, cwd : str) -> str:
@@ -345,6 +341,7 @@ class VaultSearchWindow(QMainWindow):
         """
         if self.__view_manager:
             self.__view_manager.signal_to_open_window.emit("")
+        self.exit()
         super().closeEvent(event)
 
     def __show_message(self, window_title : str, message : str, type : str = "Warning"):

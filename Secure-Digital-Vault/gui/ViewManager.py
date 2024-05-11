@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QStatusBar, QFrame, QLabel
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QFrame, QLabel
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -68,10 +68,8 @@ class WindowManager(QMainWindow):
         self.main_layout.addWidget(self.welcome_frame)
         self.main_layout.addWidget(self.buttons_frame)
 
+        # Additional information labels can be added here
         self.setCentralWidget(self.centralwidget)
-        self.statusbar = QStatusBar(self)
-        self.statusbar.setObjectName("statusbar")
-        self.setStatusBar(self.statusbar)
 
     def set_special_h(self , data : bytes):
         self.__data_h = data
@@ -96,15 +94,16 @@ class WindowManager(QMainWindow):
             self.__VaultSearchView_exit()
             self.__show_VaultView()
         else:
+            self.show()
             self.__VaultSearchView_exit()
             self.__VaultCreateView_exit()
             self.__VaultView_exit()
-            self.show()
         return
 
     def __show_VaultSearch(self):
         if not self.__VaultSearchView:
             self.__VaultSearchView = VaultSearchWindow(self)
+        self.setParent(self.__VaultSearchView)
         self.__VaultSearchView.show()
         self.hide()
 
@@ -115,10 +114,13 @@ class WindowManager(QMainWindow):
             self.__VaultSearchView.deleteLater()
             self.__VaultSearchView.destroy(True,True)
             self.__VaultSearchView = None
+        self.setParent(None)
+        self.show()
 
     def __show_VaultCreate(self):
         if not self.__VaultCreateView:
             self.__VaultCreateView = VaultCreateWindow(self)
+        self.setParent(self.__VaultCreateView)
         self.__VaultCreateView.show()
         self.hide()
 
@@ -129,11 +131,15 @@ class WindowManager(QMainWindow):
             self.__VaultCreateView.deleteLater()
             self.__VaultCreateView.destroy(True,True)
             self.__VaultCreateView = None
+        self.setParent(None)
+        self.show()
 
     def __show_VaultView(self):
         if not self.__VaultView:
             self.__VaultView = VaultViewWindow(self.__data_h, self.__data_p, self.__vault_pointer)
+        self.setParent(self.__VaultView)
         self.__VaultView.show()
+        self.hide()
         self.close_self()
 
     def __VaultView_exit(self):
@@ -143,6 +149,7 @@ class WindowManager(QMainWindow):
             self.__VaultView.deleteLater()
             self.__VaultView.destroy(True,True)
             self.__VaultView = None
+            self.close_self()
 
     def close_self(self):
         self.__VaultCreateView_exit()
