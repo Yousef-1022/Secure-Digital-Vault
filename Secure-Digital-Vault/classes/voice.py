@@ -1,19 +1,20 @@
 from utils.parsers import parse_size_to_string
-
+from custom_exceptions.classes_exceptions import MissingKeyInJson, JsonWithInvalidData
 
 class Voice:
     """Note structure used internally to represent a note within the vault
     """
-    def __init__(self, note_id : int, owned_by : int, start_loc : int, end_loc : int, extension : str, checksum : str):
-        self.__id        = note_id
-        self.__owned_by  = owned_by
-        self.__loc_start = start_loc
-        self.__loc_end   = end_loc
-        self.__extension = extension
-        self.__checksum  = checksum
+    def __init__(self, note_info : dict):
+        self.validate_mapped_data(note_info)
+        self.__id        = note_info["id"]
+        self.__owned_by  = note_info["owned_by_file"]
+        self.__loc_start = note_info["loc_start"]
+        self.__loc_end   = note_info["loc_end"]
+        self.__type      = note_info["type"]
+        self.__checksum  = note_info["checksum"]
 
     def __str__(self) -> str:
-        return f"Note of type: {self.__extension}, Size: {parse_size_to_string(self.__loc_end-self.__loc_start)}"
+        return f"Note of type: {self.__type}, Size: {parse_size_to_string(self.__loc_end-self.__loc_start)}"
 
     def get_id(self) -> int:
         return self.__id
@@ -39,11 +40,11 @@ class Voice:
     def set_loc_end(self, loc_end:int) -> None:
         self.__loc_end = loc_end
 
-    def get_extension(self) -> str:
-        return self.__extension
+    def get_type(self) -> str:
+        return self.__type
 
-    def set_extension(self, extension : str) -> None:
-        self.__extension = extension
+    def set_type(self, type : str) -> None:
+        self.__type = type
 
     def get_checksum(self) -> str:
         return self.__checksum
@@ -62,5 +63,28 @@ class Voice:
             "owned_by_file" : self.__owned_by,
             "loc_start" : self.__loc_start,
             "loc_end" : self.__loc_end,
+            "type" : self.__type,
             "checksum" : self.__checksum
         }
+
+    def validate_mapped_data(self, data : dict) -> bool:
+        """Checks whether the passed dict represents a valid Dictionary
+
+        Args:
+            data_dict (dict): dict from the dictionaries map
+
+        """
+        expected_types = {
+            "id": int,
+            "owned_by_file": int,
+            "loc_start": int,
+            "loc_end": int,
+            "type": str,
+            "checksum": str
+        }
+
+        for key, expected_type in expected_types.items():
+            if key not in data:
+                raise MissingKeyInJson(f"Key: '{key}' is missing from the dict map data")
+            if not isinstance(data[key], expected_type):
+                raise JsonWithInvalidData(f"Key: '{key}' with data: '{data[key]}' should be of type {expected_type} but is of type: '{type(data[key])}'")

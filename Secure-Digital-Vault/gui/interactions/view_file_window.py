@@ -9,7 +9,7 @@ from gui.threads.custom_thread import Worker, CustomThread
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
-from gui.interactions.add_voice_dialog import AddVoiceDialog
+from gui.interactions.voice_dialog import VoiceDialog
 from gui.interactions.interact_dialog import InteractDialog
 from gui import VaultView
 
@@ -201,7 +201,7 @@ class ViewFileWindow(QMainWindow):
     def __add_voice_note(self):
         """Adds a note to the file.
         """
-        avd = AddVoiceDialog(self.__item.get_saved_obj().get_id(),parent=self.parent())
+        avd = VoiceDialog(self.__item.get_saved_obj().get_id(),parent=self.parent())
         avd.exec()
         avd.close()
         avd.deleteLater()
@@ -212,7 +212,13 @@ class ViewFileWindow(QMainWindow):
     def __get_voice_note(self):
         """Gets the voice note of the file
         """
-        pass
+        avd = VoiceDialog(self.__item.get_saved_obj().get_metadata()["voice_note_id"],add_voice=False,parent=self.parent())
+        avd.exec()
+        avd.close()
+        avd.deleteLater()
+        avd.destroy(True,True)
+        avd = None
+        self.__fullfill_list()
 
     def update_progress_bar(self, num_to_update_with : int) -> None:
         """Updates the progress bar with the given value

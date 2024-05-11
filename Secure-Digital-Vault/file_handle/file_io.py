@@ -178,7 +178,7 @@ def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bo
         file_name (str) : Option str which is the file name. Used with create_file
 
     Returns:
-        tuple[bool,str]: First value represents True upon success, False otherwise.
+        tuple[bool,str,int,int]: First value represents True upon success, False otherwise.
         Second value is if any error raised.
         Third value is the file_size before append.
         Fourth value is the file_size after append.

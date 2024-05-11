@@ -147,7 +147,6 @@ class WindowManager(QMainWindow):
             self.__VaultView.tree_widget.clear()
             self.__VaultView.exit()
             self.__VaultView.deleteLater()
-            self.__VaultView.destroy(True,True)
             self.__VaultView = None
             self.close_self()
 

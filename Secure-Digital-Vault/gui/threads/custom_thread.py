@@ -36,6 +36,7 @@ class CustomThread(QThread):
             function_name_to_handle (str, optional): Function name which is going to be handled. Defaults to None.
         """
         super().__init__()
+        self.__is_deleted = False # This is modified by deleteLater to mark if the C++ Object is deleted.
         self.timeout = allowed_runtime*1000 # allowed time to run in seconds
         self.handled_function = function_name_to_handle
 
@@ -72,7 +73,6 @@ class CustomThread(QThread):
         """
         print(f"handle_timeout called (ungraceful). timer_finished: {self.timer_finished}")
         if not self.timer_finished:
-            self.timer_finished = True
             self.__clean_up_timers()
             self.timeout_signal.emit("Not Found")
             self.progress.emit(100)
@@ -90,7 +90,6 @@ class CustomThread(QThread):
         """
         print(f"stop_timer called (graceful). timer_finished: {self.timer_finished}")
         if not self.timer_finished:
-            self.timer_finished = True
             self.__clean_up_timers()
             if emitted_result is None:
                 self.timeout_signal.emit("Not Found")
@@ -102,14 +101,31 @@ class CustomThread(QThread):
         self.requestInterruption()
 
     def __clean_up_timers(self) -> None:
-        """Cleans up the timers by stopping them, and then deleting them.
+        """Cleans up the timers by stopping them, and then deleting them. This is done automatically
         """
-        self.timer_normal.stop()
-        self.timer_normal.deleteLater()
-        self.timer_singleshot.stop()
-        self.timer_singleshot.deleteLater()
+        if not self.timer_finished:
+            try:
+                self.timer_normal.stop()
+                self.timer_normal.deleteLater()
+            except RuntimeError:
+                pass    # wrapped C/C++ object of type CustomThread has been deleted
+            try:
+                self.timer_singleshot.stop()
+                self.timer_singleshot.deleteLater()
+            except RuntimeError:
+                pass # wrapped C/C++ object of type CustomThread has been deleted
+            self.timer_finished = True
+
+    def deleteLater(self):
+        """Deletes the thread and any important items inside it.
+        """
+        self.__clean_up_timers()
+        super().deleteLater()
 
     def exit(self) -> None:
+        try:
+            super().exit()
+        except RuntimeError:
+            pass # wrapped C/C++ object of type CustomThread has been deleted
         if not self.timer_finished:
             self.stop_timer(emit_finish=False)
-        return super().exit()

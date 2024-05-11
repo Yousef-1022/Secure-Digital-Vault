@@ -311,7 +311,7 @@ class Vault:
     def update_vault_file(self):
         """Updates the vault with the newly encrypted header, and updates the disk.
         This function should only be called after adding the relevant items into the vault, as it
-        shifts the location of everything.
+        shifts the location of everything. This function should be called by a thread.
         """
         header = self.refresh_header(return_it=True)
         header = encrypt_header(self.get_password(), header)
@@ -387,7 +387,7 @@ class Vault:
                 self.__map["voice_notes"][v_id]["loc_start"] += shift_by
                 self.__map["voice_notes"][v_id]["loc_end"] += shift_by
 
-    def get_files_with(self, name : str, extension : str, match_case : bool, is_encrypted : bool) -> list[dict]:
+    def get_files_with(self, name : str, extension : str, match_case : bool, is_encrypted : bool, has_note : bool) -> list[dict]:
         """Gets the files with the given description from the vault.
 
         Args:
@@ -395,6 +395,7 @@ class Vault:
             extension (str): File extension
             match_case (bool): Match case of the file name
             is_encrypted (bool): Grab file according to value
+            has_note (bool): Choose file if True
         """
         res = []
         for f in self.__map["files"].values():
@@ -406,11 +407,15 @@ class Vault:
                     continue
             # Extension check. Stored extension doesn't contain the dot. Fall through if empty
             if extension != '':
-                if f["metadata"]["type"] == extension[1:] and f["file_encrypted"] == is_encrypted :
-                    res.append(f)
-            else:
-                if f["file_encrypted"] == is_encrypted:
-                    res.append(f)
+                if f["metadata"]["type"] != extension[1:]:
+                    continue
+            # Encryption check. Fall through if empty
+            if is_encrypted and f["file_encrypted"] == False:
+                continue
+            # Note check.
+            if has_note and f["metadata"]["voice_note_id"] == -1:
+                continue
+            res.append(f)
         return res
 
     def get_id_from_vault(self, the_id : int, type : str) -> tuple[bool,dict]:

@@ -1,8 +1,9 @@
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QMessageBox
 from PyQt6.QtGui import QIcon
 
-from utils.constants import ICON_1
+from utils.constants import ICON_1, NOTE_LIMIT
 from utils.parsers import parse_directory_string
+from utils.extractors import get_file_from_vault
 from crypto.utils import get_checksum
 from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append
 
@@ -304,6 +305,7 @@ class VaultViewWindow(QMainWindow):
         """Refreshes the header of the vault, and updates the vault on disk
         """
         self.__vault.refresh_header()
+        # TODO: Thread
         self.__vault.update_vault_file()
 
     def request_file_id_addition_into_folder(self, folder_id : int , file_id : int):
@@ -315,7 +317,7 @@ class VaultViewWindow(QMainWindow):
         """
         self.__vault.insert_file_id_into_folder(folder_id, file_id)
 
-    def request_given_files(self, name : str, extension : str, match_case : bool, is_encrypted : bool):
+    def request_given_files(self, name : str, extension : str, match_case : bool, is_encrypted : bool, has_note : bool):
         """Looks for the given information about the files in the vault.
 
         Args:
@@ -323,10 +325,11 @@ class VaultViewWindow(QMainWindow):
             extension (str): The extension of the file which is checked before hand
             match_case (bool): If the search should be exact match_case
             is_encrypted (bool): Skip if encrypted
+            has_note (bool): Skip if False
         """
-        files = self.__vault.get_files_with(name, extension, match_case, is_encrypted)
+        files = self.__vault.get_files_with(name, extension, match_case, is_encrypted, has_note)
         if len(files) == 0:
-            self.show_message("Nothing found", f"Any file{' ' if match_case else ' not '}to match case with the name: '{name}{extension}' which its encryption is: '{is_encrypted}' could not be found!", parent=self)
+            self.show_message("Nothing found", f"Any file{' ' if match_case else ' not '}to match case with the name: '{name}{extension}' which its encryption is: '{is_encrypted}' and note existence is: '{has_note}' could not be found!", parent=self)
             return
         # TODO: Optimize
         self.tree_widget.populate_by_request(self.__vault.get_map(), files, self.__vault.get_vault_path())
@@ -387,6 +390,8 @@ class VaultViewWindow(QMainWindow):
             extension (str): Extension type
             to_file (int): The file ID to attach into
         """
+        self.add_to_vault_button.setDisabled(True)
+        self.delete_from_vault_button.setDisabled(True)
         file_bytes = None
         with open (file_loc, "rb") as f:
             file_bytes = f.read()
@@ -398,9 +403,50 @@ class VaultViewWindow(QMainWindow):
             self.show_message("Error", "Couldn't add a voice note. Check logs.", "Error" , parent=self)
             return
         note_id = self.request_new_id("V")
-        the_note = Voice(note_id, to_file, res[2], res[3], extension, get_checksum(file_loc))
+        note_info = {
+            "id" : note_id,
+            "owned_by_file" : to_file,
+            "loc_start" : res[2],
+            "loc_end" : res[3],
+            "type" : extension,
+            "checksum" : get_checksum(file_loc)
+        }
+        the_note = Voice(note_info)
         self.insert_item_into_vault(the_note.get_dict(), "V")
         self.request_header_refresh()
+        self.add_to_vault_button.setEnabled(True)
+        self.delete_from_vault_button.setEnabled(True)
+
+    def get_note_from_vault(self, file_loc : str, note_id : int):
+        """Gets the given note from the vault
+
+        Args:
+            file_loc (str): Location of the note
+            note_id (int): The note ID to get
+        """
+        note_dict = self.__vault.get_id_from_vault(note_id, "V")
+        if not note_dict[0]: # Note not existing
+            msg = f"Couldn't get note due to: {note_dict[1]}"
+            self.logger.error(msg)
+            self.show_message("Error", msg, "Error", self)
+            return
+        file_dict = self.__vault.get_id_from_vault(note_dict[1]["owned_by_file"], "F")
+        if not file_dict[0]:  # Note not belonging to file
+            msg = f"Couldn't get note due to: {file_dict[1]}"
+            self.logger.error(msg)
+            self.show_message("Error", msg, "Error", self)
+            return
+        note_name = f'{file_dict[1]["metadata"]["name"]}_note.{note_dict[1]["type"]}'
+        file_bytes = get_file_from_vault(self.__vault.get_vault_path(), note_dict[1]["loc_start"], note_dict[1]["loc_end"], NOTE_LIMIT)
+        res = append_bytes_into_file(file_loc, file_bytes, create_file=True, file_name=note_name)
+        msg = f'{file_loc}{note_name}'
+        msg_title = "Success"
+        if not res[0]:
+            msg = f"Couldn't create {msg} note due to: {res[1]}"
+            msg_title = "Failure"
+            self.logger.error(msg)
+        self.show_message(msg_title, msg, "Information", self)
+        return
 
     def update_file_data_in_vault(self, file : File):
         """On view file exit, update the header incase it was modified
@@ -412,8 +458,7 @@ class VaultViewWindow(QMainWindow):
             return
         file.validate_mapped_data(file.generate_as_dict())
         self.__vault.update_file_in_vault(file)
-        #TODO: Thread
-        self.__vault.update_vault_file()
+        self.request_header_refresh()
 
     def remove_folder_without_files(self, folder_id : int):
         """Removes the folder from the vault, it shall not contain any files.
