@@ -4,7 +4,7 @@ from PyQt6.QtCore import pyqtSignal
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_6
 from utils.extractors import get_files_and_folders_paths, get_item_info, get_amount_of_files_or_folders
-from logger.logging import Logger
+from custom_exceptions.classes_exceptions import FileError
 
 from crypto.encryptors import get_file_and_encrypt_and_add_to_vault
 from crypto.utils import get_checksum
@@ -20,7 +20,7 @@ from gui.custom_widgets.custom_messagebox import CustomMessageBox
 from gui.threads.custom_thread import Worker, CustomThread
 from gui.threads.mutable_boolean import MutableBoolean
 from gui.threads.mutable_integer import MutableInteger
-from math import ceil, floor
+from math import floor
 
 import os
 
@@ -36,7 +36,6 @@ class AddFileWindow(QMainWindow):
         self.setFocus()
 
         # Data
-        self.logger = Logger()
         self.threads = []
         self.__import_running = MutableBoolean(False)  # Can be requested to cancel operation
         self.__signaled_for_destruction = False
@@ -78,7 +77,7 @@ class AddFileWindow(QMainWindow):
         self.upper_vertical_layout2.addWidget(self.drive_dropdown)
 
         # Tree widget -> vertical_div
-        self.tree_widget = CustomTreeWidget(vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
+        self.tree_widget = CustomTreeWidget(parent=self.centralwidget, vaultview=False, vaultpath=None, header_map=None)
         self.tree_widget.populate(current_address)
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
         self.tree_widget.marquee_signal.connect(self.modify_amount_of_content)
@@ -322,7 +321,7 @@ class AddFileWindow(QMainWindow):
         current_value = self.add_progress_bar.value()
         self.add_progress_bar.setValue(num_to_update_with + current_value)
 
-    def __process_import(self, selected_items : list[tuple[str,str]], continue_running : MutableBoolean, recursions : int, signal : pyqtSignal, call_num : MutableInteger = MutableInteger(0), id_to_insert_into : int = 0) -> bool:
+    def __process_import(self, selected_items : list[tuple[str,str]], continue_running : MutableBoolean, recursions : int, signal : pyqtSignal, call_num : MutableInteger = MutableInteger(0), id_to_insert_into : int = 0):
         """Function to perform the actual import of the items in the list
 
         Args:
@@ -333,10 +332,13 @@ class AddFileWindow(QMainWindow):
             call_num (MutableInteger): A mutable integer showing the current recursion number
             id_to_insert_into(int): The ID of the directory to insert into
 
-        Returns:
-            bool: True if all went well, False incase of abortion, or failure.
         """
-        print(f"Process import called. Recursions: {recursions}. call_num: {call_num}")
+        # Handle ID REMOVAL INCASE OF ABORT
+        if not continue_running.get_value():
+            self.parent().remove_folder_without_files(id_to_insert_into)
+            signal.emit(100)
+            return
+
         # Progress bar details
         progress_increase = 0
         if recursions < 1:
@@ -347,61 +349,73 @@ class AddFileWindow(QMainWindow):
         amount_of_files = 0
         # Go through dirs:
         for folder in selected_items:
-
             if continue_running.get_value() and folder[0] == "Folder":
                 v = call_num.get_value() + 1
                 call_num.set_value(v)
                 new_id_to_insert_into = 0
                 res = get_item_info(folder[1])
-                #TODO: Handle ID REMOVAL INCASE OF ABORT
                 res["id"] = self.parent().request_new_id("D")
                 res["path"] = id_to_insert_into
                 new_id_to_insert_into = res["id"]
                 print(f"res[id]: {res['id']} , res[path]: {res['path']}. id_to_insert_into: {id_to_insert_into} , new: {new_id_to_insert_into}")
                 self.parent().insert_item_into_vault(res, "D")
-                return_val = self.__process_import(get_files_and_folders_paths(folder[1]), continue_running, recursions, signal, call_num=call_num , id_to_insert_into=new_id_to_insert_into)
-                if not return_val:
-                    print("This Must Not Happen: TODO")
-                    return False
+                self.__process_import(get_files_and_folders_paths(folder[1]), continue_running, recursions, signal, call_num=call_num , id_to_insert_into=new_id_to_insert_into)
             else:
                 amount_of_files += 1
-                # This is to make the progress bar accurate.
-        # Go through files
-        to_emit = 0
+
+        # This is to make the progress bar accurate.
+        to_emit = cntr = 0
         if amount_of_files == 0:
             to_emit = progress_increase
         else:
-            to_emit = ceil(progress_increase/amount_of_files)
-        cntr = 0
+            to_emit = floor(progress_increase/amount_of_files)
+
+        # Go through files
         for file in selected_items:
             if continue_running.get_value() and file[0] != "Folder":
                 print(f"Adding: {file[1]} into: {id_to_insert_into}")
                 import time
-                time.sleep(0.3)
-                lst = get_file_and_encrypt_and_add_to_vault(self.parent().request_vault_password(), file[1],
-                                                            self.parent().request_vault_path(), continue_running)
+                time.sleep(0.3) #TODO: Remove this
+
+                lst = None
+                try:
+                    lst = get_file_and_encrypt_and_add_to_vault(self.parent().request_vault_password(), file[1],
+                                                                self.parent().request_vault_path(), continue_running)
+                except FileError as e:
+                    err = f'Couldnt add: {file[1]} because of error: {e}'
+                    self.parent().logger.error(err)
+                    continue
+
                 res = get_item_info(file[1])
-                # TODO: CHECK IF LIST IS EMPTY
-                res["id"] = self.parent().request_new_id("F")
-                res["size"] = lst[4]
-                res["loc_start"] = lst[0]
-                res["loc_end"] = lst[1]
-                res["metadata"]["icon_data_start"] = lst[2]
-                res["metadata"]["icon_data_end"] = lst[3]
-                res["checksum"] = get_checksum(file[1])
-                res["path"] = id_to_insert_into
-                if not continue_running.get_value():
-                    break
+                if len(lst) < 3:   # No add and encrypt because continue running is false.
+                    self.parent().logger.warn(f"Couldn't add {file[1]} list sized returned is {len(lst)} which is less than 4")
+                    continue
+                if len(lst) > 3:
+                    res["id"] = self.parent().request_new_id("F")
+                    res["loc_start"] = lst[0]
+                    res["loc_end"] = lst[1]
+                    res["size"] = lst[2]
+                    res["metadata"]["icon_data_start"] = -1
+                    res["metadata"]["icon_data_end"] = -1
+                    res["checksum"] = get_checksum(file[1])
+                    res["path"] = id_to_insert_into
+                else:
+                    self.parent().logger.error(f"Couldn't add {file[1]} because list sized returned is less than 4")
+                    continue
+                if len(lst) == 4:
+                    self.parent().logger.warn(f"Couldn't add {file[1]} icon because {lst[3]}")
+                elif len(lst) == 5:
+                    res["metadata"]["icon_data_start"] = lst[3]
+                    res["metadata"]["icon_data_end"] = lst[4]
+
                 self.parent().insert_item_into_vault(res, "F")
                 self.parent().request_file_id_addition_into_folder(id_to_insert_into,res["id"])
-                print("INSERTED")
-                # TODO: EXCEPT HANDLE? BECAUSE THREAD?
+                print(f"INSERTED {file[1]}")
                 if cntr < progress_increase:
                     cntr+=to_emit
                     signal.emit(to_emit)
         if progress_increase > cntr:
             signal.emit(progress_increase-cntr)
-        return True
 
     def __initiate_abort(self) -> None:
         """Start the abortion of the import process

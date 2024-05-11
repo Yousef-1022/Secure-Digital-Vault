@@ -125,3 +125,19 @@ class File:
             if not isinstance(metadata[key], expected_type):
                 raise InvalidMetaData(f"Key: '{key}' with data: {metadata[key]} is of type: '{type(metadata[key])}' but should be '{expected_type}'")
 
+    def generate_as_dict(self) -> dict:
+        """Generates the file as a dict existing in the header
+
+        Returns:
+            dict: The dict itself which can be added into the header
+        """
+        res = {}
+        res["id"] = self.__id
+        res["size"] = self.__size
+        res["loc_start"] = self.__loc_start
+        res["loc_end"] = self.__loc_end
+        res["checksum"] = self.__checksum
+        res["file_encrypted"] = self.__file_encrypted
+        res["path"] = self.__path
+        res["metadata"] = self.__metadata
+        return res

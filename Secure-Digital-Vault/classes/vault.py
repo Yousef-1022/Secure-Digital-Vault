@@ -10,7 +10,7 @@ from custom_exceptions.classes_exceptions import JsonWithInvalidData, MissingKey
 from crypto.encryptors import encrypt_password_storage, encrypt_header
 from crypto.decryptors import decrypt_password_storage
 
-from file_handle.file_io import override_bytes_in_file, add_magic_into_header, header_padder, find_pad_length_of_header, find_header_length
+from file_handle.file_io import override_bytes_in_file, add_magic_into_header, header_padder, find_header_pointers
 
 
 class Vault:
@@ -318,10 +318,19 @@ class Vault:
         encrypted_header_len = len(header)
         header = add_magic_into_header(header, start_only=True, pad_only=True, end_only=False)
 
-        available_padding = find_pad_length_of_header(self.__vault_path)
-        header_on_disk_size = find_header_length(self.__vault_path)
+        res = find_header_pointers(self.__vault_path)
+        available_padding = res[0]
+        header_on_disk_size = res[1]
+
         print(f"encryped_header_len: {encrypted_header_len}. available_padding: {available_padding} , header_on_disk: {header_on_disk_size}")
-        if (header_on_disk_size+available_padding) <= (encrypted_header_len+32): # 32 extra bytes to account for magic
+        # If new header is smaller than what is on the disk, zeroize the MAGIC_HEADER_PAD
+        if encrypted_header_len < header_on_disk_size:
+            fd = override_bytes_in_file(file_path=self.__vault_path, given_bytes=bytes([0] * 8), byte_loss=0, at_location=res[3])
+            if fd:
+                print(f"Closing: {type(fd)} after zero-izing MAGIC_HEADER_PAD")
+                fd.close()
+        # If new header is bigger than what is on the disk
+        elif (header_on_disk_size+available_padding) <= (encrypted_header_len+32): # 32 extra bytes to account for magic
             to_pad = abs((encrypted_header_len+32) - (header_on_disk_size+available_padding)) + VAULT_BUFFER_LIMIT
             self.__data_index_shifter(to_pad)
             print(f"Calling header_padder for: {to_pad}")
@@ -332,7 +341,7 @@ class Vault:
             header = add_magic_into_header(header, start_only=True, pad_only=True, end_only=False)
         fd = override_bytes_in_file(file_path=self.__vault_path, given_bytes=header, byte_loss=0, at_location=0)
         if fd:
-            print(f"Closing: {type(fd)}")
+            print(f"Closing: {type(fd)} after override.")
             fd.close()
 
     def generate_id(self, type : str) -> int:
@@ -391,20 +400,20 @@ class Vault:
             is_encrypted (bool): Grab file according to value
         """
         res = []
-        if name == '' and extension == '':
-            return res
         for f in self.__map["files"].values():
-            # Name check
-            if name != '' and match_case and not (name == f["metadata"]["name"]):
-                continue
-            elif name != '' and not (name.lower() in f["metadata"]["name"].lower()):
-                continue
-            # Extension check. Stored extension doesn't contain the dot.
+            # Name check, Fall through if empty
+            if name != '':
+                if match_case and not (name == f["metadata"]["name"]):
+                    continue
+                elif not (name.lower() in f["metadata"]["name"].lower()):
+                    continue
+            # Extension check. Stored extension doesn't contain the dot. Fall through if empty
             if extension != '':
-                if f["file_encrypted"] == is_encrypted and f["metadata"]["type"] == extension[1:]:
+                if f["metadata"]["type"] == extension[1:] and f["file_encrypted"] == is_encrypted :
                     res.append(f)
             else:
-                res.append(f)
+                if f["file_encrypted"] == is_encrypted:
+                    res.append(f)
         return res
 
     def get_id_from_vault(self, the_id : int, type : str) -> tuple[bool,dict]:
@@ -487,3 +496,33 @@ class Vault:
                     res = self.get_files_belonging_in_id(folder["id"], get_path_as_int, f'{parent_folder_name+"/" if parent_folder_name else ""}{folder["name"]}')
                     files.extend(res)
         return files
+
+    def update_file_in_vault(self, file : File):
+        """Updates a certain file in the vault. This file is checked.
+
+        Args:
+            file (File): The checked File
+        """
+        self.__map["files"][str(file.get_id())] = file.generate_as_dict()
+
+    def safe_remove_folder(self, folder_id : int) -> tuple[bool,str]:
+        """Safely removes the folder id from the vault without deleting any files.
+
+        Args:
+            folder_id (int): The folder id to remove
+
+        Returns:
+            tuple[bool,str]: First value whether it was successful, second value if something went wrong
+        """
+        try:
+            files = len(self.__map["directories"][str(folder_id)]["files"])
+            name = self.__map["directories"][str(folder_id)]["name"]
+            if files != 0:
+                return False, f"Folder {name} has {files} inside!"
+            self.__map["directories"].pop(str(folder_id))
+            self.__map["directory_ids"].remove(folder_id)
+        except KeyError:
+            return False, f"The folder id {folder_id} does not exist!"
+        except ValueError:
+            return True, f"The folder id {folder_id} exists and was removed, but it wasnt in the directory_ids"
+        return True, ""

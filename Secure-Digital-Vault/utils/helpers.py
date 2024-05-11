@@ -75,26 +75,19 @@ def is_location_ok(location_path : str, for_file_save : bool = True, for_file_up
     except Exception as e:
         return False,e
 
-def get_file_size(file_path : str) -> tuple[int , str]:
+def get_file_size(file_path : str) -> int:
     """Gets the file size of the given file_path
 
     Args:
         file_path (str): File location on the disk
 
     Returns:
-        tuple[int , str]: tuple , where first value represents the size, second value is for any errors.
+        int: Represents the size, -1 if its not a file.
     """
-    result = is_location_ok(file_path, for_file_save=False, for_file_update=True)
-    if not result[0]:
-        return -1 , result[1]
-    the_size = 0
-    try:
-        with open (file_path, "rb") as f:
-            f.seek(0,2)
-            the_size = f.tell()
-    except Exception as e:
-        return -1 , e
-    return the_size, ""
+    file_exists = os.path.isfile(file_path)
+    if not file_exists:
+        return -1
+    return os.path.getsize(file_path)
 
 def get_available_drives() -> list[str]:
     """Returns a list of available drives in the system.

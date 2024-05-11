@@ -42,3 +42,27 @@ class Logger:
         except Exception as e:
             msg = f"{log_message} - FAILED_LOCK_ACQUISITION_EXCEPTION: {type(e).__name__} with message: {str(e)}"
             self.__log_session.add_error_log(msg)
+
+    def get_all_normal_logs(self) -> str:
+        """Returns all the normal logs created
+
+        Returns:
+            str: The normal logs
+        """
+        return self.__log_session.get_normal_logs()
+
+    def get_all_error_logs(self) -> str:
+        """Returns all the error logs created
+
+        Returns:
+            str: The error logs
+        """
+        return self.__log_session.get_error_logs()
+
+    def get_all_logs(self) -> str:
+        """Returns all the logs created
+
+        Returns:
+            str: The logs
+        """
+        return f'Errors:\n{self.__log_session.get_error_logs()}Normal:\n{self.__log_session.get_normal_logs()}'

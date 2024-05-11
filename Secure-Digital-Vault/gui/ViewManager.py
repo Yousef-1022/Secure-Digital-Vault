@@ -7,8 +7,6 @@ from gui.VaultView import VaultViewWindow
 from gui.VaultCreate import VaultCreateWindow
 from gui.custom_widgets.custom_button import CustomButton
 
-from logger.logging import Logger
-
 from utils.constants import ICON_1
 
 
@@ -25,7 +23,6 @@ class WindowManager(QMainWindow):
         self.__vault_pointer = ""
         self.signal_to_open_window.connect(self.handle_window)
         # Manager Data
-        self.logger = Logger()
         self.threads = []
         self.__VaultCreateView = None
         self.__VaultSearchView = None

@@ -84,16 +84,14 @@ class GetFileWindow(QMainWindow):
         if not directory.exists() or (drive not in get_available_drives()) or (len(path) < 3):
             window_title = "Unknown location"
             message = f"Could not find the path {path} on the system!"
-            parent = self
-            self.parent().show_message(window_title=window_title, message=message, parent=parent)
+            self.parent().show_message(window_title=window_title, message=message, parent=self)
             return
 
         res = is_location_ok(location_path=path, for_file_save=True, for_file_update=False)
         if not res[0]:
             window_title = "Location Problem"
             message = f"Could not save a file in the path {path} on the system. Reason: {res[1]}"
-            parent = self
-            self.parent().show_message(window_title=window_title, message=message, parent=parent)
+            self.parent().show_message(window_title=window_title, message=message, parent=self)
             return
 
         # Extraction Logic, we get all files and modify their paths for easier disk insertion
@@ -179,10 +177,10 @@ class GetFileWindow(QMainWindow):
             time.sleep(0.3) #TODO: Remove this
 
             # Check if file encrypted, open dialog:
-            if file.get_file_encrypted() == False:
-                # Set interactable object data
-                interactable_item[0] = True
-                interactable_item[1] = "Password"
+            if file.get_file_encrypted():
+                # Set interactable object data. 0 = KeepRunning (bool), 1 = RequestType (str), 2 = Name (str)
+                interactable_item[0] = True         # Keep running
+                interactable_item[1] = "Password"   # Request
                 interactable_item[2] = file.get_path() + f'{file.get_metadata()["name"]}.{file.get_metadata()["type"]}'
                 interaction_signal.emit(interactable_item)
 
@@ -214,9 +212,10 @@ class GetFileWindow(QMainWindow):
             print(f"Creating: {folder_location}{full_file_name}{' but has password '+password if password else ''}. VaultPass: {vault_password}")
             res = create_folder_on_disk(folder_location)
             if not res:
+                self.parent().logger.log(f"Couldn't create location: {folder_location}")
                 continue
 
-            # Get, Decrypt, and Create File. TODO
+            # TODO: 1:Better get, 2: Decrypt while get. If password is not None (For if Encrypted)
             file_from_vault = get_file_from_vault(vault_loc, file.get_loc_start(), file.get_loc_end())
             res = append_bytes_into_file(folder_location, file_from_vault, create_file=True, file_name=full_file_name)
 
@@ -242,16 +241,17 @@ class GetFileWindow(QMainWindow):
             self.__interactable[1] = "Skip"
             self.__interactable[2] = ""
             self.__dialog.exec()
-        self.__interactable[0] = False
-        self.__interactable[1] = self.__dialog.get_command()
-        self.__interactable[2] = self.__dialog.get_data()
-        self.__dialog.set_interaction_default()
+        self.__interactable[0] = False                          # KeepRunning (bool)
+        self.__interactable[1] = self.__dialog.get_command()    # RequestType (str)
+        self.__interactable[2] = self.__dialog.get_data()       # Name (str)
+        self.__dialog.reset_inner_items()
         self.__dialog.close()
 
     def closeEvent(self, event):
         """Override for close window and clean up any remaining items
         """
         print("GetFileWindow: Signaled for destruction")
+        self.__dialog.reset_inner_items()
         self.__dialog.close()
         self.__dialog.deleteLater()
         self.signal_for_destruction.emit("Destroy")

@@ -94,7 +94,7 @@ class InteractDialog(QDialog):
         self.__data = ""
         self.close()
 
-    def set_interaction_default(self) -> None:
+    def reset_inner_items(self) -> None:
         """Sets the interaction items back to default
         """
         self.__command = "Skip"

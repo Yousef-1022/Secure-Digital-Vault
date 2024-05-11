@@ -3,7 +3,7 @@ from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7
 from utils.helpers import is_proper_extension
-from logger.logging import Logger
+
 from crypto.decryptors import decrypt_header
 from custom_exceptions.utils_exceptions import MagicFailure
 from custom_exceptions.classes_exceptions import DecryptionFailure
@@ -28,7 +28,6 @@ class VaultSearchWindow(QMainWindow):
         # Pointer to ViewManager
         self.__view_manager = VaultViewManager
         # Window Data
-        self.logger = Logger()
         self.threads = []
         self.setObjectName("VaultSearchWindow")
         self.setWindowTitle("Vault Search Window")
@@ -73,7 +72,7 @@ class VaultSearchWindow(QMainWindow):
         self.upper_vertical_layout2.addWidget(self.drive_dropdown)
 
         # Tree widget -> vertical_div
-        self.tree_widget = CustomTreeWidget(vaultview=False, vaultpath=None, header_map=None, parent=self.centralwidget)
+        self.tree_widget = CustomTreeWidget(parent=self.centralwidget, vaultview=False, vaultpath=None, header_map=None)
         self.tree_widget.populate(current_address)
         self.tree_widget.updated_signal.connect(self.address_bar.setText)
 

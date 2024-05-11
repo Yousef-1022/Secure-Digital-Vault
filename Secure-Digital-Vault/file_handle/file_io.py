@@ -8,7 +8,8 @@ from utils.constants import MAGIC_HEADER_START, MAGIC_HEADER_END, MAGIC_HEADER_P
 import os
 
 
-def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, read_reverse: bool = False, chunk_size: int = CHUNK_LIMIT) -> int:
+def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, read_reverse: bool = False,
+               chunk_size: int = CHUNK_LIMIT, fd = None) -> int:
     """Finds the magic bytes in the given vault_path. It is required to remove the length of the end magic bytes after caluclating
     both Begin,End , as the index returned is after the magic bytes, e.g., <magic>_
 
@@ -18,13 +19,24 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
         start_from_index (int): optional Index where to start search from
         read_reverse (bool): optional value to read the file from the ending
         chunk_size (int, optional): Chunk size to read which has length bigger than Magic.
+        fd: FileDescriptor. It is given to reduce file opening overhead, and this function does not close it.
 
     Returns:
         int: Ending Index of the magic bytes. -1 if it does not exist.
+        If fd is not None, then the caller must close it.
     """
+
+    result = -1
+
     if chunk_size < len(magic_bytes):
-        return -1
-    with open(vault_path, "rb") as file:
+        return result
+
+    if not fd:
+        file = open(vault_path, "rb")
+    else:
+        file = fd
+
+    try:
         # Get File Size
         file.seek(0, 2)
         file_size = file.tell()
@@ -45,55 +57,56 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
                 file.seek(position)
             chunk = file.read(chunk_size)
             if not chunk:
-                return -1
+                result = -1
+                break
             # Index find
             index = chunk.find(magic_bytes)
             if index != -1:
                 actual_index = file.tell() - len(chunk) + index + len(magic_bytes)
-                return actual_index
+                result = actual_index
+                break
             # Edge case of magic being separated between two chunks.
             if read_reverse:
                 if (file.tell() - chunk_size) == 0:
-                    return -1
+                    result = -1
+                    break
                 file.seek(min(position+len(magic_bytes),file_size))
             else:
                 if file.tell() == file_size:
-                    return -1
+                    result = -1
+                    break
                 file.seek(max(file.tell()-len(magic_bytes),0))
+    except Exception:
+        result = -1
+    finally:
+        if not fd:
+            file.close()
+    return result
 
-def find_pad_length_of_header(vault_path : str) -> int:
-    """Returns the length of the pad in the header
-
-    Args:
-        vault_path (str): Location of the vault
-
-    Returns:
-        int: the length of the pad for the header.
-    """
-    magic_pad  = xor_magic(MAGIC_HEADER_PAD)
-    magic_end  = xor_magic(MAGIC_HEADER_END)
-    header_pad = find_magic(vault_path, magic_pad)
-    header_end = find_magic(vault_path, magic_end) - len(magic_end) # find_magic returns index after magic
-    if header_end == -1 or header_pad == -1:
-        return -1
-    return header_end-header_pad
-
-def find_header_length(vault_path : str) -> int:
-    """Returns the length of the encrypted header on the disk
+def find_header_pointers(vault_path : str) -> list[int]:
+    """Returns a list related to the indexes of the header. The vault path must be checked before.
 
     Args:
         vault_path (str): Location of the vault
 
     Returns:
-        int: the length of the encrypted header
+        list[int]: [0] index is the length of the pad for the header.
+        [1] index is the length of the encrypted header on the disk.
+        [2], [3], and [4] indexes are the 'starting' loc of: MAGIC_HEADER_START, MAGIC_HEADER_PAD, MAGIC_HEADER_END
     """
-    magic_start  = xor_magic(MAGIC_HEADER_START)
-    magic_pad    = xor_magic(MAGIC_HEADER_PAD)
-    header_start = find_magic(vault_path, magic_start)
-    header_pad   = find_magic(vault_path, magic_pad) - len(magic_pad) # find_magic returns index after magic
-    if header_start == -1 or header_pad == -1:
-        return -1
-    return header_pad-header_start
+    magic_start = xor_magic(MAGIC_HEADER_START)
+    magic_pad   = xor_magic(MAGIC_HEADER_PAD)
+    magic_end   = xor_magic(MAGIC_HEADER_END)
+
+    file = open(vault_path, "rb")
+    header_start = find_magic(vault_path, magic_start, fd=file)
+    header_pad   = find_magic(vault_path, magic_pad, start_from_index=header_start, fd=file)
+    header_end   = find_magic(vault_path, magic_end, start_from_index=header_pad, fd=file)
+    file.close()
+
+    pad_length    = (header_end - len(magic_end)) - header_pad
+    header_length = (header_pad - len(magic_pad)) - header_start
+    return [pad_length, header_length, header_start-len(magic_start), header_pad-len(magic_pad), header_end-len(magic_end)]
 
 def add_magic_into_header(bytes_as_dict: bytes, start_only: bool = True, pad_only: bool = True, end_only: bool = True) -> bytes:
     """Adds the relevant magic bytes into the serialized and encrypted dict
@@ -118,7 +131,7 @@ def add_magic_into_header(bytes_as_dict: bytes, start_only: bool = True, pad_onl
     return bytes(return_dict)
 
 def header_padder(file_path : str , amount_to_pad : int) -> None:
-    """Pads the header with the given amount of padding. This amount is taken from the serialized decrypted header size.
+    """Pads the header on the disk with the given amount of padding. This amount is taken from the serialized decrypted header size.
 
     Args:
         file_path (str): Location of the vault
@@ -132,8 +145,29 @@ def header_padder(file_path : str , amount_to_pad : int) -> None:
     pad_bytes = os.urandom(amount_to_pad)
     fd = override_bytes_in_file(file_path=file_path, given_bytes=pad_bytes, byte_loss=len(pad_bytes), at_location=hdr_pad_loc)
     if fd:
-        print(f"Closing: {type(fd)}")
+        print(f"Closing: {type(fd)} after override")
         fd.close()
+
+def remove_bytes_from_ending_of_file(file_path : str, num_bytes : int) -> int:
+    """Removes the specified amount of bytes from the file incase of failure.
+    Location must be checked previously.
+
+    Args:
+        file_path (str): Location of the file.
+        num_bytes (int): Number of bytes to remove
+
+    Raises:
+
+    Returns:
+        int: Amount of remaining bytes in the file
+    """
+    size = get_file_size(file_path)
+    if size < num_bytes:    # Cannot remove more bytes than what already exists
+        return -1
+    with open(file_path, "rb+") as file:
+        file.seek(-num_bytes, 2)
+        ans = file.truncate()
+    return ans
 
 def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bool = False, file_name : str = "") -> tuple[bool,str,int,int]:
     """Adds the bytes into the given file. Can be used to insert for the vault itself.
@@ -155,54 +189,63 @@ def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bo
     else:
         result = is_location_ok(file_path, for_file_save=create_file, for_file_update=True)
     if not result[0]:
-        return (False, result[1], 0,0)
+        return (False, f'{result[1]}, appended: 0', 0,0)
     init_size = 0
     new_size = 0
     try:
         amount_of_bytes = len(the_bytes)
         written_bytes = 0
         if create_file:
-            with open(f'{file_path}/{file_name}' , "ab") as f:
+            with open(f'{file_path}/{file_name}' , "wb") as f:
                 written_bytes = f.write(the_bytes)
         else:
             res = get_file_size(file_path)
-            if res[0] < 0 :
-                raise FileError(res[1])
-            init_size = res[0]
+            if res <= 0 :
+                raise FileError(f"File: {file_path} has size of '{res}', appended: 0")
+            init_size = res
             with open(file_path , "ab") as f:
                 written_bytes = f.write(the_bytes)
 
             res = get_file_size(file_path)
-            new_size = res[0]
-            if res[0] - init_size != len(the_bytes):
-                raise FileError(f"Old size: {init_size} != New size: {res[0]} - Bytes to append: {amount_of_bytes}, appended: {written_bytes}. {res[1]}")
+            new_size = res
+            if res - init_size != len(the_bytes):
+                raise FileError(f"Appending Failure. Old size: {init_size} != New size: {res} after append. Total bytes to add: {amount_of_bytes}, appended: {written_bytes}")
         if written_bytes != amount_of_bytes:
-            raise FileError(f"Appended Failure. Old size: {init_size} != New size: {res[0]} - Bytes to append: {amount_of_bytes}, appended: {written_bytes}. {res[1]}")
+            raise FileError(f"Appending Failure. Old size: {init_size} != New size: {res} after append. Total bytes to add: {amount_of_bytes}, appended: {written_bytes}")
         return (True, "", init_size, new_size)
     except FileError as e:
         return (False, e, init_size, new_size)
     except Exception as e:
         return (False, e, init_size, new_size)
 
-def remove_bytes_from_file(file_path : str, num_bytes : int) -> bool:
-    """Removes the specified amount of bytes from the file incase of failure.
+def stabilize_after_failed_append(file_path : str, append_error : str, old_size : int, already_add_bytes : int = 0):
+    """Handle scenario incase append_bytes_into_file function returns False.
 
     Args:
-        file_path (str): Location of the file.
-        num_bytes (int): Number of bytes to remove
+        file_path (str): The location of the file, must be correct by default.
+        append_error (str): Error given by the append_bytes_into_file function.
+        old_size (int): Init size of the file.
+        already_add_bytes (int, optional): Already added bytes. Defaults to 0.
 
     Returns:
-        bool: Boolean value upon success
+        str: Process string error of what happened.
     """
-    res = is_location_ok(location_path=file_path, for_file_save=False,for_file_update=True)
-    if not res[0]:
-        raise FileError(res[1])
-    with open(file_path, "rb+") as file:
-        file.seek(-num_bytes, 2)
-        file.truncate()
-    return True
+    word = "appended:"
+    location = append_error.rfind(word)
+    num = append_error[location+len(word):].strip()
+    added_bytes = 0
+    try:
+        res = int(num)
+    except ValueError:
+        res = 0
+    prev_error = append_error
+    prev_error += f", Size is: '{res}'"
+    added_bytes += already_add_bytes
+    after_removal = remove_bytes_from_ending_of_file(file_path, added_bytes) # To remove anything added to the vault
+    return f'{prev_error}, removal of appended {added_bytes} bytes makes new vault size: {after_removal} while the old size was: {old_size}'
 
-def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : int, at_location : int = 0, chunk_size : int = CHUNK_LIMIT, once : bool = True, fd  = None):
+def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : int,
+                           at_location : int = 0, chunk_size : int = CHUNK_LIMIT, once : bool = True, fd  = None):
     """Adds the given bytes at a certain location of the file. Shifting is involved. Can be used to insert to the beginning of the file.
 
     Args:
@@ -217,44 +260,39 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
 
         at_location (int, optional): Index location to start addition from. Defaults to 0.
         chunk_size (int): Chunk size to have in memory
-        once (bool, optional): Boolean to mark the first iteration. MUST NOT BE USED.
-        fd: FileDescriptor. MUST NOT BE USED.
+        once (bool, optional): Boolean to mark the first iteration. MUST NOT BE USED AS IT IS USED BY RECURSION.
+        fd: FileDescriptor. It is given to reduce file opening overhead. MUST NOT BE USED AS IT IS USED BY RECURSION.
 
         Returns:
-            FileDescriptor (fd): FileDescriptor to be closed by the caller.
+            FileDescriptor (fd): FileDescriptor, which is to be closed by the caller.
     """
-    print("overriding")
+    print(f"overriding {file_path} at_location {at_location}, with byte_loss of: {byte_loss} and given_bytes of: {len(given_bytes)}")
     if len(given_bytes) == 0:
         print("given_bytes zero quit")
         return fd
 
     tmp = get_file_size(file_path)
-    if tmp[0] < 0:
+    if tmp <= 0:
         if fd:
             fd.close()
-        raise FileError(tmp[1])
+        return None
 
-    original_size = tmp[0]
+    original_size = tmp
     save_location = at_location
 
     if fd:
-        fd.seek(at_location+(len(given_bytes) - byte_loss))
-        lost_chunk = fd.read(chunk_size)
-        fd.seek(at_location)
-        fd.write(given_bytes)
-        if once:
-            fd.write(lost_chunk[:byte_loss])
-        save_location = fd.tell()
-    else:   # FIRST TIME TO SAVE OPEN, SAVE FD AS WELL AS ONCE
+        file = fd
+    else:
         file = open(file_path , "rb+")
-        file.seek(at_location+(len(given_bytes) - byte_loss))
-        lost_chunk = file.read(chunk_size)
-        file.seek(at_location)
-        file.write(given_bytes)
-        if once:
-            file.write(lost_chunk[:byte_loss])
-        save_location = file.tell()
-    file = fd
+
+    file.seek(at_location+(len(given_bytes) - byte_loss))
+    lost_chunk = file.read(chunk_size)
+    file.seek(at_location)
+    file.write(given_bytes)
+    if once:
+        file.write(lost_chunk[:byte_loss])
+    save_location = file.tell()
+
     if save_location >= original_size:
         print("save_location quit")
         return fd

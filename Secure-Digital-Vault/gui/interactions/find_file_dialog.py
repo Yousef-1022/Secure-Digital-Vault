@@ -49,11 +49,8 @@ class FindFileDialog(QDialog):
         match_string_case = self.match_string_checkbox.isChecked()
         is_encrypted = self.is_encrypted_checkbox.isChecked()
 
-        if extension_text == '' and string_name_text == '':
-            self.parent().show_message("Incorrect parameters", "At least an extension or a file name should exist.")
-            return
-        elif not is_proper_extension(extension_text):
-            self.parent().show_message("Invalid extension", f"The given extension {extension_text} is not a valid extension!")
+        if extension_text != '' and not self.is_encrypted_checkbox.isChecked():
+            self.parent().show_message("Invalid extension", f"The given extension {extension_text} is not a valid extension!", parent=self)
             return
 
         self.hide()

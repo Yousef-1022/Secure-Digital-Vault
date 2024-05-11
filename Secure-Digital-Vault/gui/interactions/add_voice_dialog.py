@@ -43,18 +43,18 @@ class AddVoiceDialog(QDialog):
         extension = self.extension_label_edit.text()
         file_location = self.file_location_label_edit.text()
         if not is_proper_extension(extension):
-            self.parent().show_message("Incorrect extension", f"The given extension: '{extension}' is not valid")
+            self.parent().show_message("Incorrect extension", f"The given extension: '{extension}' is not valid", parent=self)
             return
         if extract_extension(file_location) != extension[1:]:
             print(file_location,extension,extract_extension(file_location))
-            self.parent().show_message("Mistmatch", f"The given extension: '{extension}' does not match what is in the given location: '{file_location}'!")
+            self.parent().show_message("Mistmatch", f"The given extension: '{extension}' does not match what is in the given location: '{file_location}'!", parent=self)
             return
         res = get_file_size(file_location)
-        if res[0] <= 0:
-            self.parent().show_message("Invalid file", f"The given location: '{file_location}' is not valid because: '{res[1]}'")
+        if res <= 0:
+            self.parent().show_message("Invalid file", f"The given location: '{file_location}' is not valid because the size is: '{res}'!", parent=self)
             return
-        if res[0] > NOTE_LIMIT:
-            self.parent().show_message("Too big", f"The given location: '{file_location}' file is not suitable because the size: '{parse_size_to_string(res[0])}' is bigger than: '{parse_size_to_string(NOTE_LIMIT)}'!")
+        if res > NOTE_LIMIT:
+            self.parent().show_message("Too big", f"The file in the given location: '{file_location}' is not suitable because the size: '{parse_size_to_string(res)}' is bigger than: '{parse_size_to_string(NOTE_LIMIT)}'!", parent=self)
             return
         self.hide()
         self.parent().add_note_to_vault(file_location, extension, self.__file_id)

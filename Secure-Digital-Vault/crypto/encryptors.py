@@ -1,5 +1,5 @@
 from custom_exceptions.classes_exceptions import FileError
-from file_handle.file_io import append_bytes_into_file, remove_bytes_from_file
+from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append
 from utils.extractors import get_icon_from_file
 from utils.helpers import get_file_size
 from utils.constants import CHUNK_LIMIT
@@ -20,7 +20,7 @@ def encrypt_header(password : str , header : bytes) -> bytes:
     # TODO: Encrypt header
     return header
 
-def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault_path : str, continue_running : MutableBoolean , chunk_size : int = CHUNK_LIMIT) -> list[int]:
+def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault_path : str, continue_running : MutableBoolean , chunk_size : int = CHUNK_LIMIT) -> list:
     """Gets the file as bytes, encrypts during reading to avoid memory overhead, and adds it to the vault. Also, adds the icon.
 
     Args:
@@ -30,22 +30,29 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
         keep_running (MutableBoolean): Boolean to abort process
         chunk_size (int): Chunk size to read.
 
+    Raises:
+        FileError
+
     Returns:
-        list[int]: First two values represent where the file starts and ends, second two values represent where the icon starts and ends. Last Value is Size.
+        list: [0] index is: file_loc_start, [1] index is: file_loc_end, [2] index is: encrypted_file_size,
+        [3] is: icon_loc_start, [4] is: icon_loc_end.
+        If less values than 5 are returned, then an error has occured.
+        4 values indicate that the addition of the file itself was fine, but last value is the error.
     """
     if not continue_running.get_value():
         return []
     ans = []
     res = get_file_size(vault_path)
-    if res[0] < 1:
-        raise FileError(res[1])
-    vault_size = res[0]
+    if res <= 0:
+        raise FileError(f"File: {vault_path} at initial stage has size of '{res}'!")
+    vault_size = res
     print(f"vault_size ({vault_size}) before adding: ({file_path})")
     loc_start = vault_size
     ans.append(loc_start)
 
-    file_size = res[0]
+    file_size = res
     encrypted_file_size = 0
+    added_bytes = 0
 
     # TODO: Lock vault file with OS before appending. PASS ABORT BOOLEAN
     with open(file_path, "rb") as file:
@@ -55,6 +62,7 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
             if not chunk:
                 break
 
+            # Encrypt and append
             chunk = encrypt_bytes(password, chunk)
             encrypted_file_size += len(chunk)
             if not continue_running.get_value():
@@ -62,49 +70,44 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
             res = append_bytes_into_file(file_path=vault_path, the_bytes=chunk)
 
             if not res[0] or not continue_running.get_value():
-                prev_error = res[1]
-                res = get_file_size(vault_path)
-                prev_error += res[1]
-                try:
-                    remove_bytes_from_file(vault_path, res[0] - vault_size) # To remove anything added to the vault
-                except Exception as e:
-                    prev_error += e
-                raise FileError(prev_error)
+                continue_running.set_value(False)
+                error_str = stabilize_after_failed_append(vault_path, res[1], res[2], added_bytes)
+                raise FileError(error_str)
 
+            added_bytes += len(chunk)
             if file.tell() == file_size:
                 break
     # TODO: Close lock
 
     res = get_file_size(vault_path)
-    if res[0] < 1:
-        raise FileError(res[1])
-    new_vault_size = res[0]
-    if new_vault_size - vault_size != encrypted_file_size:
-        raise FileError(f"OldVaultSize: {vault_size}, NewSize: {new_vault_size}, EncryptedFileSize: {encrypted_file_size}. MISMATCH! . OldError: {res[1]}")
+    new_vault_size = res
     print(f"vault_size ({new_vault_size}) after adding: ({file_path})")
 
     loc_end = new_vault_size
     ans.append(loc_end)
-    prev_error = ""
+    ans.append(encrypted_file_size)
+    # From this point onward its fine to add file into vault because the answer list has 3 values at least
+
     if not continue_running.get_value():
-        return []
+        ans.append("Continue running is turned off!")
+        return ans
 
     file_icon = get_icon_from_file(file_path)
 
     icon_start = loc_end
     res = append_bytes_into_file(file_path=vault_path, the_bytes=file_icon)
     if not res[0]:
-        raise FileError(res[1])
+        prev_error = stabilize_after_failed_append(vault_path, res[1], res[2], res[3]-res[2])
+        prev_error += ", the file has no icon bytes"
+        ans.append(prev_error)
+        return ans
+
     # Icon tuple + EncryptedFileSize
     res = get_file_size(vault_path)
-    if res[0] < 1:
-        raise FileError(res[1])
-
-    icon_end = res[0]
+    icon_end = res
     print(f"vault_size ({icon_end}) after icon adding of: ({file_path})")
     ans.append(icon_start)
     ans.append(icon_end)
-    ans.append(encrypted_file_size)
     print(f"THE LIST: {ans}")
     return ans
 

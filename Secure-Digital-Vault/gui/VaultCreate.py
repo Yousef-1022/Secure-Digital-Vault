@@ -8,7 +8,6 @@ from gui.custom_widgets.custom_line_password import CustomPasswordLineEdit
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
 
-from logger.logging import Logger
 from file_handle.file_io import append_bytes_into_file, add_magic_into_header, header_padder
 
 from utils.constants import VAULT_CREATION_KEYS , ICON_1, VAULT_BUFFER_LIMIT
@@ -26,7 +25,6 @@ class VaultCreateWindow(QMainWindow):
         # Pointer to ViewManager
         self.__view_manager = VaultViewManager
         # Window Data
-        self.logger = Logger()
         self.threads = []
 
         # QtData
@@ -220,11 +218,10 @@ class VaultCreateWindow(QMainWindow):
         header = encrypt_header(data["Password"], header)
         header = add_magic_into_header(header)
         result = append_bytes_into_file(file_path=data['Vault Location'],the_bytes=header,create_file=True, file_name=vault)
-        header_padder(file_path=f"{data['Vault Location']}/{vault}", amount_to_pad=VAULT_BUFFER_LIMIT) # buffer size
         if not result[0]:
-            print(result[1])
-        else:
-            print(result)
+            QMessageBox.warning(self, "Couldn't create vault", f"Reason: {result[1]}")
+            return
+        header_padder(file_path=f"{data['Vault Location']}/{vault}", amount_to_pad=VAULT_BUFFER_LIMIT) # buffer size
 
     def __collect_header_data(self) -> dict:
         """Gets the necessary information for the header

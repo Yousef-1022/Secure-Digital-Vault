@@ -10,7 +10,6 @@ from utils.constants import TREE_COLUMNS
 from classes.file import File
 from classes.directory import Directory
 from classes.vault import Vault
-from logger.logging import Logger
 
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
@@ -28,15 +27,15 @@ class CustomTreeWidget(QTreeWidget):
     clicked_file_signal = pyqtSignal(object)
     marquee_signal = pyqtSignal()
 
-    def __init__(self, vaultview : bool = False , vaultpath : str = None, header_map : dict = None, parent: QWidget = None):
+    def __init__(self, parent: QWidget, vaultview : bool = False , vaultpath : str = None, header_map : dict = None):
         """
         Initialize the custom tree widget.
 
         Args:
+            parent (QWidget): The parent widget.
             vaultview (bool): boolean indicating that the tree widget is meant for VaultView
             vaultpath (str): location of the vault on the disk
             header_map(dict): the header_map dictionary
-            parent (QWidget): The parent widget. Default is None.
         """
         super().__init__(parent)
         self.vaultview = vaultview
@@ -130,7 +129,6 @@ class CustomTreeWidget(QTreeWidget):
 
         cleard_once = False # Indicator to clear the tree once, this must be True if the directory is found
         skip_files = False  # Indicator incase the current directory does not have files
-
         cur_dir_name = Vault.determine_directory_path(path_id=goto_dir, data_dict=header_map["directories"])
 
         if cur_dir_name == "/":
