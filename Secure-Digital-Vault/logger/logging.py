@@ -43,6 +43,11 @@ class Logger:
             msg = f"{log_message} - FAILED_LOCK_ACQUISITION_EXCEPTION: {type(e).__name__} with message: {str(e)}"
             self.__log_session.add_error_log(msg)
 
+    @staticmethod
+    def form_log_message(msg : str, level : str = "ATTENTION"):
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return f"{timestamp} [{level}]: Message: {msg}"
+
     def get_all_normal_logs(self) -> str:
         """Returns all the normal logs created
 

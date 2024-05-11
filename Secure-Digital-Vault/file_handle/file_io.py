@@ -145,7 +145,6 @@ def header_padder(file_path : str , amount_to_pad : int) -> None:
     pad_bytes = os.urandom(amount_to_pad)
     fd = override_bytes_in_file(file_path=file_path, given_bytes=pad_bytes, byte_loss=len(pad_bytes), at_location=hdr_pad_loc)
     if fd:
-        print(f"Closing: {type(fd)} after override")
         fd.close()
 
 def remove_bytes_from_ending_of_file(file_path : str, num_bytes : int) -> int:
@@ -266,9 +265,7 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
         Returns:
             FileDescriptor (fd): FileDescriptor, which is to be closed by the caller.
     """
-    print(f"overriding {file_path} at_location {at_location}, with byte_loss of: {byte_loss} and given_bytes of: {len(given_bytes)}")
     if len(given_bytes) == 0:
-        print("given_bytes zero quit")
         return fd
 
     tmp = get_file_size(file_path)
@@ -294,7 +291,6 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
     save_location = file.tell()
 
     if save_location >= original_size:
-        print("save_location quit")
         return fd
     if once:
         tmp_fd = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk[byte_loss:], byte_loss=byte_loss,
@@ -302,6 +298,7 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
     else:
         tmp_fd = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk, byte_loss=byte_loss,
                                at_location=save_location, chunk_size=chunk_size, once=False, fd=file)
+    print(f"overridden {file_path} at_location {at_location}, with byte_loss of: {byte_loss} and given_bytes of: {len(given_bytes)}")
     return tmp_fd
 
 def create_folder_on_disk(path : str) -> bool:

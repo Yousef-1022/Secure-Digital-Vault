@@ -3,6 +3,7 @@ from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7
 from utils.helpers import is_proper_extension
+from logger.logging import Logger
 
 from crypto.decryptors import decrypt_header
 from custom_exceptions.utils_exceptions import MagicFailure
@@ -150,7 +151,6 @@ class VaultSearchWindow(QMainWindow):
             str: Location of the vault, None if not available
         """
         if not is_proper_extension(vault_extension):
-            # TODO LOGGER , but is already up
             return None
         if not cwd:
             current_directory = os.getcwd()
@@ -193,29 +193,31 @@ class VaultSearchWindow(QMainWindow):
 
         def __end_worker_activity(emitted_result):
             self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
-            self.mythread.quit()
             self.worker.deleteLater()
         self.worker.finished.connect(__end_worker_activity)
-        #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
-
-        # Progress functions
-        def update_detected_file(emitted_obj : object) -> None:
-            self.vault_location_line.setText(str(emitted_obj))
 
         def update_detected_button_progress(emitted_num : int) -> None:
-            if emitted_num == 100 or self.detect_vault_button_progress_bar.value() == 100:
+            if emitted_num == 100 or self.detect_vault_button_progress_bar.value() >= 100:
                 self.detect_vault_button_progress_bar.stop_progress()
                 self.detect_vault_button.setDisabled(False)
                 return
             if self.detect_vault_button_progress_bar.value() == 0:
                 self.detect_vault_button_progress_bar.setVisible(True)
             current_value = self.detect_vault_button_progress_bar.value()
-            self.detect_vault_button_progress_bar.setValue(emitted_num + current_value)
+            if emitted_num + current_value >= 100:
+                self.detect_vault_button_progress_bar.setValue(99)
+            else:
+                self.detect_vault_button_progress_bar.setValue(emitted_num + current_value)
 
         self.mythread.progress.connect(update_detected_button_progress)
-        self.mythread.timeout_signal.connect(update_detected_file)
-        self.mythread.finished.connect(self.mythread.quit)
-        #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
+
+        def __end_thread_activity(emitted_obj):
+            self.vault_location_line.setText(str(emitted_obj))
+            self.detect_vault_button_progress_bar.stop_progress()
+            self.mythread.quit()
+
+        self.mythread.timeout_signal.connect(__end_thread_activity)
+        self.mythread.finished.connect(self.mythread.deleteLater)
 
         self.detect_vault_button.setDisabled(True)
         self.mythread.start()
@@ -275,23 +277,28 @@ class VaultSearchWindow(QMainWindow):
 
             def __end_worker_activity(emitted_result):
                 self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
-                self.mythread.quit()
                 self.worker.deleteLater()
             self.worker.finished.connect(__end_worker_activity)
-            #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
             # Progress functions
             def update_decrypt_progress(emitted_num : int) -> None:
-                if emitted_num == 100 or self.decrypt_progress_bar.value() == 100:
+                if emitted_num == 100 or self.decrypt_progress_bar.value() >= 100:
                     self.decrypt_progress_bar.stop_progress(False)
                     self.import_vault_button.setDisabled(False)
                     return
                 current_value = self.decrypt_progress_bar.value()
-                self.decrypt_progress_bar.setValue(emitted_num + current_value)
+                if emitted_num + current_value >= 100:
+                    self.decrypt_progress_bar.setValue(99)
+                else:
+                    self.decrypt_progress_bar.setValue(emitted_num + current_value)
 
             self.mythread.progress.connect(update_decrypt_progress)
-            self.mythread.finished.connect(self.mythread.quit)
-            #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
+
+            def __end_thread_activity():
+                self.decrypt_progress_bar.stop_progress()
+                self.mythread.quit()
+            self.mythread.timeout_signal.connect(__end_thread_activity)
+            self.mythread.finished.connect(self.mythread.deleteLater)
 
             self.import_vault_button.setDisabled(True)
             self.mythread.start()
@@ -319,11 +326,11 @@ class VaultSearchWindow(QMainWindow):
         try:
             actual_header = decrypt_header(vault_loc,password)
         except MagicFailure as e:
-            print(e)
-            return #TODO log
+            self.__show_message("Corrupted Vault",Logger.form_log_message(e, "ERROR"), "Error")
+            return
         except DecryptionFailure as e:
-            print(e)
-            return # TODO log and hint
+            self.__show_message("Decryption Failure", Logger.form_log_message(e), "Error")
+            return # TODO hint
         self.__view_manager.set_special_h(actual_header)
         self.__view_manager.set_special_p(password)
         self.__view_manager.set_vault_pointer(vault_loc)
@@ -339,6 +346,24 @@ class VaultSearchWindow(QMainWindow):
         if self.__view_manager:
             self.__view_manager.signal_to_open_window.emit("")
         super().closeEvent(event)
+
+    def __show_message(self, window_title : str, message : str, type : str = "Warning"):
+        """Display a message box with the given details.
+
+        Args:
+            window_title(str): the title of the message
+            message(str): the message itself
+            type(str) optional: type of the icon to show
+        """
+        message_box = CustomMessageBox(parent=self)
+        if type not in [enum.name for enum in QMessageBox.Icon]:
+            message_box.setIcon(QMessageBox.Icon.Warning)
+        else:
+            message_box.setIcon(QMessageBox.Icon[type])
+        message_box.setWindowTitle(window_title)
+        message_box.showMessage(message)
+        message_box.close()
+        message_box.deleteLater()
 
     # Cleanup
     def exit(self) -> None:

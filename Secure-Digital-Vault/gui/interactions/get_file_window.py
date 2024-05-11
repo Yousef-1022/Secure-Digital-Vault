@@ -35,6 +35,7 @@ class GetFileWindow(QMainWindow):
         self.items = items
 
         # Custom Data
+        self.threads = []
         self.__vault_loc = self.parent().request_vault_path()
         self.__vault_pass = self.parent().request_vault_password()
         self.__dialog = InteractDialog(self)
@@ -109,6 +110,8 @@ class GetFileWindow(QMainWindow):
 
         # Threading
         self.mythread = CustomThread(240 , self.on_extract_button_clicked.__name__)
+        self.threads.append(self.mythread)
+
         self.worker = Worker(self.process_extract, all_files, dir_loc, self.__vault_loc, self.__vault_pass, self.__interactable)
         self.worker.args += (self.worker.interaction, )
         self.worker.args += (self.worker.progress, )    # Force add signals
@@ -120,10 +123,8 @@ class GetFileWindow(QMainWindow):
 
         def __end_worker_activity(emitted_result):
             self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
-            self.mythread.quit()
             self.worker.deleteLater()
         self.worker.finished.connect(__end_worker_activity)
-        #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
         def __end_thread_activity():
             self.extraction_progress_bar.setValue(0)
@@ -131,7 +132,7 @@ class GetFileWindow(QMainWindow):
             self.address_bar.setEnabled(True)
             self.mythread.quit()
         self.mythread.timeout_signal.connect(__end_thread_activity)
-        #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
+        self.mythread.finished.connect(self.mythread.deleteLater)
 
         self.extraction_progress_bar.setVisible(True)
         self.address_bar.setDisabled(True)
@@ -143,11 +144,14 @@ class GetFileWindow(QMainWindow):
         Args:
             emitted_num (int): _description_
         """
-        if num_to_update_with == 100 or self.extraction_progress_bar.value() == 100:
+        if num_to_update_with == 100 or self.extraction_progress_bar.value() >= 100:
             self.extraction_progress_bar.stop_progress(False)
             return
         current_value = self.extraction_progress_bar.value()
-        self.extraction_progress_bar.setValue(num_to_update_with + current_value)
+        if num_to_update_with + current_value >= 100:
+            self.extraction_progress_bar.setValue(99)
+        else:
+            self.extraction_progress_bar.setValue(num_to_update_with + current_value)
 
     def process_extract(self, lst : list[File], address_location : str, vault_loc : str, vault_password : str, interactable_item : object,
                         interaction_signal : pyqtSignal, progress_signal : pyqtSignal):
@@ -188,7 +192,7 @@ class GetFileWindow(QMainWindow):
                     time.sleep(1)   # Wait for response
 
                 if interactable_item[1] == "Skip":
-                    print(f"Skipping: {file.get_path()}{file.get_metadata()['name']}.{file.get_metadata()['type']}")
+                    self.parent().logger.info(f"Skipped: {file.get_path()}{file.get_metadata()['name']}.{file.get_metadata()['type']}")
                     if file_amount > 100:
                         if cntr == emit_every:
                             progress_signal.emit(1)
@@ -254,5 +258,16 @@ class GetFileWindow(QMainWindow):
         self.__dialog.reset_inner_items()
         self.__dialog.close()
         self.__dialog.deleteLater()
-        self.signal_for_destruction.emit("Destroy")
+        self.exit()
         super().closeEvent(event)
+
+    def exit(self):
+        """Cleans up any available threads and tries to close them along with the window.
+        """
+        self.clearFocus()
+        for t in self.threads:
+            t.exit()
+        self.threads.clear()
+        self.hide()
+        self.signal_for_destruction.emit("Destroy")
+        self.close()

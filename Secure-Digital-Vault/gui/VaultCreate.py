@@ -216,12 +216,18 @@ class VaultCreateWindow(QMainWindow):
 
         header = serialize_dict(formulate_header(data["Vault Name"] , data["Vault Extension"]))
         header = encrypt_header(data["Password"], header)
+        self.progress_bar.setValue(30)
         header = add_magic_into_header(header)
         result = append_bytes_into_file(file_path=data['Vault Location'],the_bytes=header,create_file=True, file_name=vault)
         if not result[0]:
             QMessageBox.warning(self, "Couldn't create vault", f"Reason: {result[1]}")
+            self.progress_bar.setVisible(False)
+            self.progress_bar.setValue(0)
             return
+        self.progress_bar.setValue(90)
         header_padder(file_path=f"{data['Vault Location']}/{vault}", amount_to_pad=VAULT_BUFFER_LIMIT) # buffer size
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setValue(0)
 
     def __collect_header_data(self) -> dict:
         """Gets the necessary information for the header

@@ -61,7 +61,6 @@ def parse_from_string_to_size(size_instr: str) -> int:
             try:
                 return int(float(size_value) * factor)
             except ValueError as e:
-                print(e)
                 return -1  # Unable to parse
     return -1  # Unknown suffix
 

@@ -240,18 +240,16 @@ class AddFileWindow(QMainWindow):
 
         def __end_worker_activity(emitted_result):
             self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
-            self.mythread.quit()
             self.worker.deleteLater()
         self.worker.finished.connect(__end_worker_activity)
-        #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
         def __end_thread_activity():
             self.__import_running.set_value(False)
             self.__update_header()  # After import, the vault must have saved information.
             self.__clean_import()
             self.mythread.quit()
-        self.mythread.finished.connect(__end_thread_activity)
-        #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
+        self.mythread.timeout_signal.connect(__end_thread_activity)
+        self.mythread.finished.connect(self.mythread.deleteLater)
 
         self.import_button.setText("Abort")
         self.import_button.button_label = "Abort"
@@ -305,7 +303,6 @@ class AddFileWindow(QMainWindow):
         """Refreshes the header, and modifies the vault itself.
         """
         if not self.__import_running.get_value():
-            print("Update header called")
             self.parent().request_header_refresh()
             self.__import_running.set_value(False) # BruteForce
 
@@ -315,11 +312,14 @@ class AddFileWindow(QMainWindow):
         Args:
             emitted_num (int): _description_
         """
-        if num_to_update_with == 100 or self.add_progress_bar.value() == 100:
+        if num_to_update_with == 100 or self.add_progress_bar.value() >= 100:
             self.add_progress_bar.stop_progress(False)
             return
         current_value = self.add_progress_bar.value()
-        self.add_progress_bar.setValue(num_to_update_with + current_value)
+        if num_to_update_with + current_value >= 100:
+            self.add_progress_bar.setValue(99)
+        else:
+            self.add_progress_bar.setValue(num_to_update_with + current_value)
 
     def __process_import(self, selected_items : list[tuple[str,str]], continue_running : MutableBoolean, recursions : int, signal : pyqtSignal, call_num : MutableInteger = MutableInteger(0), id_to_insert_into : int = 0):
         """Function to perform the actual import of the items in the list
@@ -357,7 +357,6 @@ class AddFileWindow(QMainWindow):
                 res["id"] = self.parent().request_new_id("D")
                 res["path"] = id_to_insert_into
                 new_id_to_insert_into = res["id"]
-                print(f"res[id]: {res['id']} , res[path]: {res['path']}. id_to_insert_into: {id_to_insert_into} , new: {new_id_to_insert_into}")
                 self.parent().insert_item_into_vault(res, "D")
                 self.__process_import(get_files_and_folders_paths(folder[1]), continue_running, recursions, signal, call_num=call_num , id_to_insert_into=new_id_to_insert_into)
             else:
@@ -373,12 +372,12 @@ class AddFileWindow(QMainWindow):
         # Go through files
         for file in selected_items:
             if continue_running.get_value() and file[0] != "Folder":
-                print(f"Adding: {file[1]} into: {id_to_insert_into}")
                 import time
                 time.sleep(0.3) #TODO: Remove this
 
                 lst = None
                 try:
+                    # lst will either return: [] , [int,int,int] , [int,int,int,int,int]
                     lst = get_file_and_encrypt_and_add_to_vault(self.parent().request_vault_password(), file[1],
                                                                 self.parent().request_vault_path(), continue_running)
                 except FileError as e:
@@ -388,7 +387,7 @@ class AddFileWindow(QMainWindow):
 
                 res = get_item_info(file[1])
                 if len(lst) < 3:   # No add and encrypt because continue running is false.
-                    self.parent().logger.warn(f"Couldn't add {file[1]} list sized returned is {len(lst)} which is less than 4")
+                    self.parent().logger.warn(f"Couldn't add {file[1]} because operation was cancelled")
                     continue
                 if len(lst) > 3:
                     res["id"] = self.parent().request_new_id("F")
@@ -400,7 +399,7 @@ class AddFileWindow(QMainWindow):
                     res["checksum"] = get_checksum(file[1])
                     res["path"] = id_to_insert_into
                 else:
-                    self.parent().logger.error(f"Couldn't add {file[1]} because list sized returned is less than 4")
+                    self.parent().logger.error(f"Couldn't add {file[1]} because list values {lst} are incomplete.")
                     continue
                 if len(lst) == 4:
                     self.parent().logger.warn(f"Couldn't add {file[1]} icon because {lst[3]}")
@@ -410,7 +409,7 @@ class AddFileWindow(QMainWindow):
 
                 self.parent().insert_item_into_vault(res, "F")
                 self.parent().request_file_id_addition_into_folder(id_to_insert_into,res["id"])
-                print(f"INSERTED {file[1]}")
+                print(f"INSERTED {file[1]} with {lst}")
                 if cntr < progress_increase:
                     cntr+=to_emit
                     signal.emit(to_emit)

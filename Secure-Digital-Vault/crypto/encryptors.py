@@ -21,7 +21,7 @@ def encrypt_header(password : str , header : bytes) -> bytes:
     return header
 
 def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault_path : str, continue_running : MutableBoolean , chunk_size : int = CHUNK_LIMIT) -> list:
-    """Gets the file as bytes, encrypts during reading to avoid memory overhead, and adds it to the vault. Also, adds the icon.
+    """Gets the file as bytes, encrypts during reading to avoid memory overhead, and adds it to the vault on disk. Also, adds the icon.
 
     Args:
         password (str): Password of the vault.
@@ -31,7 +31,7 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
         chunk_size (int): Chunk size to read.
 
     Raises:
-        FileError
+        FileError incase it was not able to handle failure
 
     Returns:
         list: [0] index is: file_loc_start, [1] index is: file_loc_end, [2] index is: encrypted_file_size,
@@ -46,7 +46,7 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
     if res <= 0:
         raise FileError(f"File: {vault_path} at initial stage has size of '{res}'!")
     vault_size = res
-    print(f"vault_size ({vault_size}) before adding: ({file_path})")
+
     loc_start = vault_size
     ans.append(loc_start)
 
@@ -81,7 +81,6 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
 
     res = get_file_size(vault_path)
     new_vault_size = res
-    print(f"vault_size ({new_vault_size}) after adding: ({file_path})")
 
     loc_end = new_vault_size
     ans.append(loc_end)
@@ -105,10 +104,9 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
     # Icon tuple + EncryptedFileSize
     res = get_file_size(vault_path)
     icon_end = res
-    print(f"vault_size ({icon_end}) after icon adding of: ({file_path})")
+
     ans.append(icon_start)
     ans.append(icon_end)
-    print(f"THE LIST: {ans}")
     return ans
 
 def encrypt_bytes(password : str , byte_chunk : bytes) -> bytes:

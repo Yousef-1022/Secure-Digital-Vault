@@ -27,6 +27,7 @@ class ViewFileWindow(QMainWindow):
         self.setMinimumSize(600, 400)
 
         # Data
+        self.threads = []
         self.__item = item
         self.__encrypted = False
         self.__dialog = InteractDialog(self)
@@ -141,6 +142,8 @@ class ViewFileWindow(QMainWindow):
             self.decrypt_button.setDisabled(True)
 
         self.mythread = CustomThread(240 , self.__encrypt_or_decrypt_file.__name__)
+        self.threads.append(self.mythread)
+
         self.worker = Worker(self.__process_file, self.__item.get_path(), self.__item.get_saved_obj().get_loc_start(),
                              self.__item.get_saved_obj().get_loc_end(), self.__dialog.get_data())
         self.worker.args += (self.worker.progress, )    # Force add signal
@@ -151,24 +154,22 @@ class ViewFileWindow(QMainWindow):
 
         def __end_worker_activity(emitted_result):
             self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
-            self.mythread.quit()
             self.worker.deleteLater()
         self.worker.finished.connect(__end_worker_activity)
-        #self.worker.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
 
         def __end_thread_activity(emitted_result):
-            self.progress_bar.setValue(0)
-            self.progress_bar.setVisible(False)
-            self.__dialog.reset_inner_items()
             if isinstance (emitted_result, list):
                 if emitted_result[0]:
                     self.__item.get_saved_obj().set_file_encrypted(self.__encrypted)
                     self.__item.get_saved_obj().set_loc_end(emitted_result[2])
                     self.item_updated = True
-            self.__fullfill_list()
+                self.__dialog.reset_inner_items()
+                self.__fullfill_list()
+            self.progress_bar.setValue(0)
+            self.progress_bar.setVisible(False)
             self.mythread.quit()
         self.mythread.timeout_signal.connect(__end_thread_activity)
-        #self.mythread.finished.connect(self.mythread.deleteLater) _ PLACEHOLDER TODO
+        self.mythread.finished.connect(self.mythread.deleteLater)
 
         self.progress_bar.setVisible(True)
         self.mythread.start()
@@ -219,11 +220,14 @@ class ViewFileWindow(QMainWindow):
         Args:
             emitted_num (int): _description_
         """
-        if num_to_update_with == 100 or self.progress_bar.value() == 100:
+        if num_to_update_with == 100 or self.progress_bar.value() >= 100:
             self.progress_bar.stop_progress(False)
             return
         current_value = self.progress_bar.value()
-        self.progress_bar.setValue(num_to_update_with + current_value)
+        if num_to_update_with + current_value >= 100:
+            self.progress_bar.setValue(99)
+        else:
+            self.progress_bar.setValue(num_to_update_with + current_value)
 
     def closeEvent(self, event):
         """Override for close window and clean up any remaining items
@@ -236,4 +240,15 @@ class ViewFileWindow(QMainWindow):
             self.signal_for_destruction.emit(["Destroy",self.__item.get_saved_obj()])
         else:
             self.signal_for_destruction.emit("Destroy")
+        self.exit()
+        self.close()
         super().closeEvent(event)
+
+    def exit(self):
+        """Cleans up any available threads and tries to close them along with the window.
+        """
+        self.clearFocus()
+        for t in self.threads:
+            t.exit()
+        self.threads.clear()
+        self.hide()

@@ -260,6 +260,7 @@ class VaultViewWindow(QMainWindow):
         message_box.setWindowTitle(window_title)
         message_box.showMessage(message)
         message_box.close()
+        message_box.deleteLater()
 
     def open_find_dialog(self):
         """On find button click show dialog.

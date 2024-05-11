@@ -322,18 +322,16 @@ class Vault:
         available_padding = res[0]
         header_on_disk_size = res[1]
 
-        print(f"encryped_header_len: {encrypted_header_len}. available_padding: {available_padding} , header_on_disk: {header_on_disk_size}")
         # If new header is smaller than what is on the disk, zeroize the MAGIC_HEADER_PAD
         if encrypted_header_len < header_on_disk_size:
             fd = override_bytes_in_file(file_path=self.__vault_path, given_bytes=bytes([0] * 8), byte_loss=0, at_location=res[3])
             if fd:
-                print(f"Closing: {type(fd)} after zero-izing MAGIC_HEADER_PAD")
                 fd.close()
         # If new header is bigger than what is on the disk
         elif (header_on_disk_size+available_padding) <= (encrypted_header_len+32): # 32 extra bytes to account for magic
             to_pad = abs((encrypted_header_len+32) - (header_on_disk_size+available_padding)) + VAULT_BUFFER_LIMIT
             self.__data_index_shifter(to_pad)
-            print(f"Calling header_padder for: {to_pad}")
+            print(f"Calling header_padder for: {to_pad}. encryped_header_len: {encrypted_header_len}. available_padding: {available_padding} , header_on_disk: {header_on_disk_size}")
             header_padder(file_path=self.__vault_path, amount_to_pad=to_pad)
             # Need to account for extra digit length by data_index_shifter, thus must to re-encrypt header:
             header = self.refresh_header(return_it=True)
@@ -341,7 +339,6 @@ class Vault:
             header = add_magic_into_header(header, start_only=True, pad_only=True, end_only=False)
         fd = override_bytes_in_file(file_path=self.__vault_path, given_bytes=header, byte_loss=0, at_location=0)
         if fd:
-            print(f"Closing: {type(fd)} after override.")
             fd.close()
 
     def generate_id(self, type : str) -> int:
