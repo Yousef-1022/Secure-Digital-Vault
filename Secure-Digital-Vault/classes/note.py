@@ -1,7 +1,7 @@
 from utils.parsers import parse_size_to_string
 from custom_exceptions.classes_exceptions import MissingKeyInJson, JsonWithInvalidData
 
-class Voice:
+class Note:
     """Note structure used internally to represent a note within the vault
     """
     def __init__(self, note_info : dict):
@@ -52,7 +52,7 @@ class Voice:
     def set_checksum(self, checksum : str) -> None:
         self.__checksum = checksum
 
-    def get_dict(self) -> dict:
+    def get_as_dict(self) -> dict:
         """Returns a dict in the map format
 
         Returns:

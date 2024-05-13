@@ -9,13 +9,13 @@ from gui.threads.custom_thread import Worker, CustomThread
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
-from gui.interactions.voice_dialog import VoiceDialog
+from gui.interactions.note_dialog import NoteDialog
 from gui.interactions.interact_dialog import InteractDialog
 from gui import VaultView
 
 from utils.constants import ICON_1
 from utils.parsers import parse_timestamp_to_string
-
+from crypto.utils import is_password_strong
 
 class ViewFileWindow(QMainWindow):
 
@@ -44,12 +44,12 @@ class ViewFileWindow(QMainWindow):
         self.decrypt_button = CustomButton("Decrypt", QIcon(ICON_1), "Decrypt file", self.central_widget)
         self.decrypt_button.set_action(self.__encrypt_or_decrypt_file, False)
 
-        self.remove_voice_button = CustomButton("Remove VoiceNote", QIcon(ICON_1), "Remove voice note from file", self.central_widget)
+        self.remove_note_button = CustomButton("Remove Note", QIcon(ICON_1), "Remove note note from file", self.central_widget)
 
-        self.add_voice_button = CustomButton("Add VoiceNote", QIcon(ICON_1), "Add voice note to file", self.central_widget)
-        self.add_voice_button.set_action(self.__add_voice_note)
-        self.get_voice_button = CustomButton("Get VoiceNote", QIcon(ICON_1), "Get the VoiceNote", self.central_widget)
-        self.get_voice_button.set_action(self.__get_voice_note)
+        self.add_note_button = CustomButton("Add Note", QIcon(ICON_1), "Add note to file", self.central_widget)
+        self.add_note_button.set_action(self.__add_note)
+        self.get_note_button = CustomButton("Get Note", QIcon(ICON_1), "Get the Note", self.central_widget)
+        self.get_note_button.set_action(self.__get_note)
 
         # List widget to display items
         self.list_widget = QListWidget(self)
@@ -61,9 +61,9 @@ class ViewFileWindow(QMainWindow):
         # Add buttons to self.vertical_layout
         self.button_layout.addWidget(self.encrypt_button)
         self.button_layout.addWidget(self.decrypt_button)
-        self.button_layout.addWidget(self.remove_voice_button)
-        self.button_layout.addWidget(self.add_voice_button)
-        self.button_layout.addWidget(self.get_voice_button)
+        self.button_layout.addWidget(self.remove_note_button)
+        self.button_layout.addWidget(self.add_note_button)
+        self.button_layout.addWidget(self.get_note_button)
         self.vertical_layout.addLayout(self.button_layout)
         self.vertical_layout.addWidget(self.list_widget)
         self.vertical_layout.addWidget(self.progress_bar)
@@ -85,20 +85,20 @@ class ViewFileWindow(QMainWindow):
             else:
                 self.encrypt_button.setEnabled(True)
                 self.decrypt_button.setDisabled(True)
-            if self.__item.get_saved_obj().get_metadata()["voice_note_id"] != -1:
-                self.remove_voice_button.setEnabled(True)
-                self.add_voice_button.setDisabled(True)
-                self.get_voice_button.setEnabled(True)
+            if self.__item.get_saved_obj().get_metadata()["note_id"] != -1:
+                self.remove_note_button.setEnabled(True)
+                self.add_note_button.setDisabled(True)
+                self.get_note_button.setEnabled(True)
             else:
-                self.remove_voice_button.setDisabled(True)
-                self.add_voice_button.setEnabled(True)
-                self.get_voice_button.setDisabled(True)
+                self.remove_note_button.setDisabled(True)
+                self.add_note_button.setEnabled(True)
+                self.get_note_button.setDisabled(True)
         elif isinstance(self.__item.get_saved_obj(), Directory):
             self.encrypt_button.setDisabled(True)
             self.decrypt_button.setDisabled(True)
-            self.remove_voice_button.setDisabled(True)
-            self.add_voice_button.setDisabled(True)
-            self.get_voice_button.setDisabled(True)
+            self.remove_note_button.setDisabled(True)
+            self.add_note_button.setDisabled(True)
+            self.get_note_button.setDisabled(True)
 
     def __fullfill_list(self):
         """Fullfills the list of the view file window, and updates the buttons accordingly
@@ -133,6 +133,12 @@ class ViewFileWindow(QMainWindow):
             return
 
         if encrypt:
+            res = is_password_strong(self.__dialog.get_data())
+            if not res[0]:
+                msg = ''.join([f'- {reason}\n' for reason in res[1]])
+                self.parent().show_message("Weak Password", msg, "Information", self)
+                self.__dialog.reset_inner_items()
+                return
             self.__encrypted = True
             self.encrypt_button.setDisabled(True)
             self.decrypt_button.setEnabled(True)
@@ -198,10 +204,10 @@ class ViewFileWindow(QMainWindow):
         time.sleep(0.3) #TODO: Remove this
         return res
 
-    def __add_voice_note(self):
+    def __add_note(self):
         """Adds a note to the file.
         """
-        avd = VoiceDialog(self.__item.get_saved_obj().get_id(),parent=self.parent())
+        avd = NoteDialog(self.__item.get_saved_obj().get_id(),parent=self.parent())
         avd.exec()
         avd.close()
         avd.deleteLater()
@@ -209,10 +215,10 @@ class ViewFileWindow(QMainWindow):
         avd = None
         self.__fullfill_list()
 
-    def __get_voice_note(self):
-        """Gets the voice note of the file
+    def __get_note(self):
+        """Gets the note note of the file
         """
-        avd = VoiceDialog(self.__item.get_saved_obj().get_metadata()["voice_note_id"],add_voice=False,parent=self.parent())
+        avd = NoteDialog(self.__item.get_saved_obj().get_metadata()["note_id"],add_note=False,parent=self.parent())
         avd.exec()
         avd.close()
         avd.deleteLater()
@@ -224,7 +230,7 @@ class ViewFileWindow(QMainWindow):
         """Updates the progress bar with the given value
 
         Args:
-            emitted_num (int): _description_
+            emitted_num (int): Num to add into bar
         """
         if num_to_update_with == 100 or self.progress_bar.value() >= 100:
             self.progress_bar.stop_progress(False)

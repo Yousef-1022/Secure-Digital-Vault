@@ -4,7 +4,10 @@ from utils.id_gen import gen_id
 from utils.serialization import serialize_dict
 from utils.helpers import count_digits
 
+from logger.logging import Logger
 from classes.file import File
+from classes.directory import Directory
+from classes.note import Note
 from custom_exceptions.classes_exceptions import JsonWithInvalidData, MissingKeyInJson
 
 from crypto.encryptors import encrypt_password_storage, encrypt_header
@@ -17,12 +20,16 @@ class Vault:
     def __init__(self, password : str, vault_path : str):
         self.__header = {}
         self.__map = {}
-        self.__footer = {}
         self.__vault_path = vault_path
         self.__password = encrypt_password_storage(password)
 
     # Getters, Setters and Loaders
     def get_header(self) -> dict:
+        """Gets the header as a dict
+
+        Returns:
+            dict: Returns the header as a whole from the Vault
+        """
         return self.__header
 
     def set_header(self, header:dict):
@@ -56,12 +63,27 @@ class Vault:
         return None
 
     def get_password(self) -> str:
+        """Gets the decrypted password (from storage) of the vault.
+
+        Returns:
+            str: The password as a string.
+        """
         return decrypt_password_storage(self.__password)
 
     def set_password(self, password : str) -> None:
+        """Sets the password of the vault with the given string, and then Encrypts it (to storage) of the vault.
+
+        Args:
+            password (str): The password as a string
+        """
         self.__password = encrypt_password_storage(password)
 
     def get_map(self) -> dict:
+        """Returns the map of the vault as a dict
+
+        Returns:
+            dict: The map as a dict
+        """
         return self.__map
 
     def set_map(self, map:dict):
@@ -72,21 +94,20 @@ class Vault:
         """
         self.__map = map
 
-    def get_footer(self) -> dict:
-        return self.__footer
-
-    def set_footer(self, footer:dict):
-        """Sets the footers
-
-        Args:
-            footer (dict): footer to set
-        """
-        self.__footer = footer
-
     def get_vault_path(self) -> str:
+        """Returns the path of the saved Vault File.
+
+        Returns:
+            str: The file (vault) location on Disk
+        """
         return self.__vault_path
 
     def get_vault_size(self) -> int:
+        """Returns the UNENCRYPTED header_size of the Vault
+
+        Returns:
+            int: The length of the the unencrypted seralized header of the Vault.
+        """
         return self.__header["vault"]["header_size"]
 
     def determine_if_dir_path_is_valid(self, dir_names : list, level : int = 0) -> tuple[bool,int]:
@@ -143,33 +164,108 @@ class Vault:
         return Vault.determine_directory_path(parent_id, data_dict, parent_name)
 
     def __insert_file_id(self, file_id : int):
+        """Internal function used after the id generation.
+
+        Args:
+            file_id (int): The newly generted id by gen_id. (A function must call self.generate_id)
+        """
         self.__map["file_ids"].append(file_id)
 
     def insert_file(self, file_dict : dict):
+        """Inserts the given file dict into the header. This must be called after physically appending the file into the vault
+
+        Args:
+            file_dict (dict): The file dict into the header.
+        """
         self.__map["files"][str(file_dict["id"])] = file_dict
         size = file_dict["size"]
         self.__header["vault"]["file_size"] += size
         self.__header["vault"]["amount_of_files"] += 1
 
+    def remove_file(self, file_id : int):
+        """Removes the given file id from: the map, file_ids , the directory it belongs to, and decreases the amount of files.
+        This function should be called after physically removing the file id from the vault.
+
+        Args:
+            file_id (int): The file id to remove from the header
+        """
+        folder_id = self.__map["files"][str(file_id)]["path"]
+        self.__map["file_ids"].remove(file_id)
+        if folder_id > 0:
+            self.__map["directories"][str(folder_id)]["files"].remove(file_id)
+        self.__map["files"].pop(str(file_id))
+        self.__header["vault"]["amount_of_files"] -= 1
+
     def insert_file_id_into_folder(self, folder_id : int , file_id : int):
-        if folder_id > 0 and file_id > 0:
+        """Inserts the given file id, which has its path as "folder_id" already defined into the folder.
+
+        Args:
+            folder_id (int): The folder which should the file_id be inside.
+            file_id (int): The file id (dict) of which its path is already set to "folder_id"
+        """
+        if folder_id > 0:
             self.__map["directories"][str(folder_id)]["files"].append(file_id)
 
     def __insert_folder_id(self, folder_id : int):
+        """Internal function used after the id generation.
+
+        Args:
+            folder_id (int): The newly generted id by gen_id. (A function must call self.generate_id)
+        """
         self.__map["directory_ids"].append(folder_id)
 
+    def remove_folder(self, folder_id : int):
+        """Removes the given folder id from: the map, directory_ids , and clears any file ids in it.
+
+        Args:
+            folder_id (int): The folder id to remove from the header
+        """
+        if folder_id > 0:
+            self.__map["directory_ids"].remove(folder_id)
+            self.__map["directories"][str(folder_id)]["files"].clear()
+            self.__map["directories"].pop(str(folder_id))
+
     def insert_folder(self, folder_dict : dict):
+        """Inserts the given folder dict into the header. No need for byte allocation after the header.
+
+        Args:
+            file_dict (dict): The folder dict into the header.
+        """
         self.__map["directories"][str(folder_dict["id"])] = folder_dict
 
-    def __insert_voice_note_id(self, voice_note_id : int):
-        self.__map["voice_note_ids"].append(voice_note_id)
+    def __insert_note_id(self, note_id : int):
+        """Internal function used after the id generation.
 
-    def insert_voice_note(self, voice_note_dict : dict):
-        self.__map["voice_notes"][str(voice_note_dict["id"])] = voice_note_dict
-        self.__map["files"][str(voice_note_dict["owned_by_file"])]["metadata"]["voice_note_id"] = voice_note_dict["id"]
-        voice_size = voice_note_dict["loc_end"] - voice_note_dict["loc_start"]
-        self.__header["vault"]["file_size"] += voice_size
+        Args:
+            note_id (int): The newly generted id by gen_id. (A function must call self.generate_id)
+        """
+        self.__map["note_ids"].append(note_id)
+
+    def insert_note(self, note_dict : dict):
+        """Inserts the given note dict into the header. This must be called after physically appending the note into the vault
+
+        Args:
+            note_dict (dict): The note dict into the header.
+        """
+        self.__map["notes"][str(note_dict["id"])] = note_dict
+        self.__map["files"][str(note_dict["owned_by_file"])]["metadata"]["note_id"] = note_dict["id"]
+        self.__map["files"][str(note_dict["owned_by_file"])]["metadata"]["last_modified"] = Logger.get_current_time()
+        note_size = note_dict["loc_end"] - note_dict["loc_start"]
+        self.__header["vault"]["file_size"] += note_size
         self.__header["vault"]["amount_of_files"] += 1 # Counts as a File
+
+    def remove_note(self, note_id : int):
+        """Removes the given note id from: the map, note_ids , the file it is owned by, and decreases the amount of files
+
+        Args:
+            note_id (int): The note id to remove from the header
+        """
+        owned_by = self.__map["notes"][str(note_id)]["owned_by_file"]
+        self.__map["files"][str(owned_by)]["metadata"]["note_id"] = -1
+        self.__map["files"][str(owned_by)]["metadata"]["last_modified"] = Logger.get_current_time()
+        self.__map["note_ids"].remove(note_id)
+        self.__map["notes"].pop(str(note_id))
+        self.__header["amount_of_files"] -= 1 # Counts as a File
 
     # Header Validators
     def validate_header(self, full_header:bytes) -> dict:
@@ -243,7 +339,7 @@ class Vault:
                     raise MissingKeyInJson(f"Key '{key}' does not exist in the 'vault' dict!")
 
     def __validate_map_keys(self, map : dict) -> None:
-        """Checks if the key 'map' contains valid keys, but does not check the correctness of files, directories, voice_notes
+        """Checks if the key 'map' contains valid keys, but does not check the correctness of files, directories, notes
 
         Args:
             map (dict): the dict of the the 'map' key
@@ -251,7 +347,7 @@ class Vault:
         for key in MAP_KEYS:
             if key not in map:
                 raise MissingKeyInJson(f"Key '{key}' is missing from the 'map' dict")
-            # file_ids , directory_ids, voice_note_ids
+            # file_ids , directory_ids, note_ids
             if key[-3:] == "ids":
                 try:
                     if not isinstance(map[key], list):
@@ -262,7 +358,7 @@ class Vault:
                                 raise JsonWithInvalidData(f"The'{key}' must contain a list of integers but '{value}' is of type: {type(value)}.")
                 except KeyError:
                         raise MissingKeyInJson(f"Key '{key}' does not exist in the 'map' dict!")
-            # files, directories, voice_notes
+            # files, directories, notes
             else:
                 try:
                     if not isinstance(map[key], dict):
@@ -330,7 +426,7 @@ class Vault:
         # If new header is bigger than what is on the disk
         elif (header_on_disk_size+available_padding) <= (encrypted_header_len+32): # 32 extra bytes to account for magic
             to_pad = abs((encrypted_header_len+32) - (header_on_disk_size+available_padding)) + VAULT_BUFFER_LIMIT
-            self.__data_index_shifter(to_pad)
+            self.data_index_shifter(shift_by=to_pad, shift_direction=True, at_index=-1)
             print(f"Calling header_padder for: {to_pad}. encryped_header_len: {encrypted_header_len}. available_padding: {available_padding} , header_on_disk: {header_on_disk_size}")
             header_padder(file_path=self.__vault_path, amount_to_pad=to_pad)
             # Need to account for extra digit length by data_index_shifter, thus must to re-encrypt header:
@@ -342,10 +438,10 @@ class Vault:
             fd.close()
 
     def generate_id(self, type : str) -> int:
-        """Generates a new ID for either a new file or a new folder or a new voice
+        """Generates a new ID for either a new file or a new folder or a new note
 
         Args:
-            type (str): F for File, D for Folder, V for VoiceNote
+            type (str): F for File, D for Folder, V for Note
 
         Returns:
             int: The new id
@@ -360,32 +456,66 @@ class Vault:
             the_id = gen_id(self.__map["directory_ids"], "directory_ids")
             self.__insert_folder_id(the_id)
         elif type == "V":
-            the_id = gen_id(self.__map["voice_note_ids"], "voice_note_ids")
-            self.__insert_voice_note_id(the_id)
+            the_id = gen_id(self.__map["note_ids"], "note_ids")
+            self.__insert_note_id(the_id)
         return the_id
 
-    def __data_index_shifter(self, shift_by : int) :
-        """Shifts the data in the header by a given a number. This includes: File location, Voice location, and Icon Location.
+    def data_index_shifter(self, shift_by : int, shift_direction : bool, at_index : int = -1) :
+        """Shifts the data in the header by a given a number. This includes: File location, Note location, and Icon Location.
 
         Args:
             shift_by (int): Amount of bytes to shift by.
+            shift_direction (bool): True if to the right (add), False if to the Left (Subtract)
+            at_index (int): Shift only those after this index.
         """
-        # Shifting files location
+        # Shifting files and their icons locations
         for f_id in self.__map["files"].keys():
-            self.__map["files"][f_id]["loc_start"] += shift_by
-            self.__map["files"][f_id]["loc_end"] += shift_by
-            icon_start = self.__map["files"][f_id]["metadata"]["icon_data_start"]
-            icon_end = self.__map["files"][f_id]["metadata"]["icon_data_end"]
-            if (icon_start > 0) and (icon_end > 0):
-                self.__map["files"][f_id]["metadata"]["icon_data_start"] += shift_by
-                self.__map["files"][f_id]["metadata"]["icon_data_end"] += shift_by
-        # Shifting voice notes location
-        for v_id in self.__map["voice_notes"].keys():
-            icon_start = self.__map["voice_notes"][v_id]["loc_start"]
-            icon_end = self.__map["voice_notes"][v_id]["loc_end"]
-            if (icon_start > 0) and (icon_end > 0):
-                self.__map["voice_notes"][v_id]["loc_start"] += shift_by
-                self.__map["voice_notes"][v_id]["loc_end"] += shift_by
+
+            proceed_file = True
+            proceed_icon = True
+
+            if at_index != -1:
+                # If shift to the right (after append override), that means the loc_start must be less than the index to be update
+                if self.__map["files"][f_id]["loc_start"] <= at_index:
+                    proceed_file = False
+                if self.__map["files"][f_id]["metadata"]["icon_data_start"] <= at_index:
+                    proceed_icon = False
+
+            if proceed_file:
+                if shift_direction:
+                    self.__map["files"][f_id]["loc_start"] += shift_by
+                    self.__map["files"][f_id]["loc_end"]   += shift_by
+                else:
+                    self.__map["files"][f_id]["loc_start"] -= shift_by
+                    self.__map["files"][f_id]["loc_end"]   -= shift_by
+
+            if proceed_icon:
+                icon_start = self.__map["files"][f_id]["metadata"]["icon_data_start"]
+                icon_end = self.__map["files"][f_id]["metadata"]["icon_data_end"]
+                if (icon_start > 0) and (icon_end > 0):
+                    if shift_direction:
+                        self.__map["files"][f_id]["metadata"]["icon_data_start"] += shift_by
+                        self.__map["files"][f_id]["metadata"]["icon_data_end"]   += shift_by
+                    else:
+                        self.__map["files"][f_id]["metadata"]["icon_data_start"] -= shift_by
+                        self.__map["files"][f_id]["metadata"]["icon_data_end"]   -= shift_by
+
+        # Shifting note notes location
+        for v_id in self.__map["notes"].keys():
+
+            proceed = True
+
+            if at_index != -1:
+                if self.__map["notes"][v_id]["loc_start"] <= at_index:
+                    proceed = False
+
+            if proceed:
+                if shift_direction:
+                    self.__map["notes"][v_id]["loc_start"] += shift_by
+                    self.__map["notes"][v_id]["loc_end"]   += shift_by
+                else:
+                    self.__map["notes"][v_id]["loc_start"] -= shift_by
+                    self.__map["notes"][v_id]["loc_end"]   -= shift_by
 
     def get_files_with(self, name : str, extension : str, match_case : bool, is_encrypted : bool, has_note : bool) -> list[dict]:
         """Gets the files with the given description from the vault.
@@ -396,6 +526,9 @@ class Vault:
             match_case (bool): Match case of the file name
             is_encrypted (bool): Grab file according to value
             has_note (bool): Choose file if True
+
+        Returns:
+            list[dict]: A list of dicts representing files that belong into the the map
         """
         res = []
         for f in self.__map["files"].values():
@@ -413,31 +546,41 @@ class Vault:
             if is_encrypted and f["file_encrypted"] == False:
                 continue
             # Note check.
-            if has_note and f["metadata"]["voice_note_id"] == -1:
+            if has_note and f["metadata"]["note_id"] == -1:
                 continue
             res.append(f)
         return res
 
-    def get_id_from_vault(self, the_id : int, type : str) -> tuple[bool,dict]:
+    def get_id_from_vault(self, the_id : int, type : str, as_dict : bool = True) -> tuple[bool,object]:
         """Gets the ID from the vault.
 
         Args:
             the_id (int): The ID to look for
-            type (str): F for File, D for Folder, V for VoiceNote
+            type (str): F for File, D for Folder, V for Note
+            as_dict (bool): Whether to keep the item as a dict, or as a class
 
         Returns:
-            tuple[bool,dict]: first part if exists, second part the actual dict
+            tuple[bool,object]: first part if exists, second part the actual dict or item
         """
-        res = (False, {})
+        res = (False, f'ID: {the_id} of type {type} doe not exist!')
         if type == "F":
             if the_id in self.__map["file_ids"]:
-                res = (True ,self.__map["files"][str(the_id)])
+                if as_dict:
+                    res = (True, self.__map["files"][str(the_id)])
+                else:
+                    res = (True, File(self.__map["files"][str(the_id)]))
         elif type == "D":
             if the_id in self.__map["directory_ids"]:
-                res = (True ,self.__map["directories"][str(the_id)])
+                if as_dict:
+                    res = (True,self.__map["directories"][str(the_id)])
+                else:
+                    res = (True, Directory(self.__map["directories"][str(the_id)]))
         elif type == "V":
-            if the_id in self.__map["voice_note_ids"]:
-                res = (True ,self.__map["voice_notes"][str(the_id)])
+            if the_id in self.__map["note_ids"]:
+                if as_dict:
+                    res = (True, self.__map["notes"][str(the_id)])
+                else:
+                    res = (True, Note(self.__map["notes"][str(the_id)]))
         return res
 
     def get_name_of_id(self, the_id : int, type : str) -> str:
@@ -476,7 +619,7 @@ class Vault:
         Args:
             folder_id (int): The id of the folder
             get_path_as_int (bool) optional: Whether to keep the File path as default, or Path id. If False, it overrides the set_path to a str of path
-            parent_folder_name (str) optional: To add the the parent folder name into the already available path
+            parent_folder_name (str) optional: To add the parent folder name into the already available path
 
         Returns:
             list[File]: List of File class
@@ -499,13 +642,42 @@ class Vault:
                     files.extend(res)
         return files
 
+    def get_items_under_id(self, belong_to : int) -> list:
+        """Returns the items which belong to the id
+
+        Args:
+            belong_to (int): The id which items belong to its path
+
+        Returns:
+            list: List of Files and Directories
+        """
+        lst = []
+        # Check Directories first
+        for some_folder in self.__map["directories"].values():
+            if some_folder["path"] == belong_to:
+                dict = Directory(some_folder)
+                lst.append(dict)
+        for some_file in self.__map["files"].values():
+            if some_file["path"] == belong_to:
+                file = File(some_file)
+                lst.append(file)
+        return lst
+
     def update_file_in_vault(self, file : File):
         """Updates a certain file in the vault. This file is checked.
 
         Args:
             file (File): The checked File
         """
-        self.__map["files"][str(file.get_id())] = file.generate_as_dict()
+        self.__map["files"][str(file.get_id())] = file.get_as_dict()
+
+    def update_folder_in_vault(self, folder : Directory):
+        """Updates a certain folder in the vault. This folder is checked.
+
+        Args:
+            folder (Directory): The checked Directory
+        """
+        self.__map["directories"][str(folder.get_id())] = folder.get_as_dict()
 
     def safe_remove_folder(self, folder_id : int) -> tuple[bool,str]:
         """Safely removes the folder id from the vault without deleting any files.
@@ -516,15 +688,24 @@ class Vault:
         Returns:
             tuple[bool,str]: First value whether it was successful, second value if something went wrong
         """
+        if folder_id == 0:
+            return True, ""
         try:
             files = len(self.__map["directories"][str(folder_id)]["files"])
             name = self.__map["directories"][str(folder_id)]["name"]
             if files != 0:
-                return False, f"Folder {name} has {files} inside!"
-            self.__map["directories"].pop(str(folder_id))
-            self.__map["directory_ids"].remove(folder_id)
+                return False, f"Folder {name} has {files} inside! Thus, cannot remove"
+            self.remove_folder(folder_id)
         except KeyError:
             return False, f"The folder id {folder_id} does not exist!"
         except ValueError:
             return True, f"The folder id {folder_id} exists and was removed, but it wasnt in the directory_ids"
         return True, ""
+
+    def update_file_size_of_vault(self, amount_of_bytes : int):
+        """Updates the header's 'file_size' with the given variable
+
+        Args:
+            amount_of_bytes (int): amount of bytes to update with
+        """
+        self.__header["vault"]["file_size"] += amount_of_bytes

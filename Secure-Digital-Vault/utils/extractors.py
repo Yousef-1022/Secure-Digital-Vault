@@ -1,7 +1,7 @@
-from PyQt6.QtCore import QByteArray, QFileInfo, QBuffer, QSize, QDir
+from PyQt6.QtCore import QByteArray, QFileInfo, QBuffer, QSize, QDir, QFile
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import QFileIconProvider
-from utils.constants import CHUNK_LIMIT
+from utils.constants import CHUNK_LIMIT, DEFAULT_ICON_SIZE
 
 
 def get_file_from_vault(vault_path : str, starting_byte : int , ending_byte : int, chunk_size_to_read : int = CHUNK_LIMIT):
@@ -46,7 +46,7 @@ def get_icon_from_file(file_loc : str) -> bytes:
     icon = file_icon_provider.icon(file_info)
     if icon.isNull():
         return None
-    pixmap = QPixmap(icon.pixmap(icon.actualSize(QSize(256, 256)))) # Approximate Windows Platform Size.
+    pixmap = QPixmap(icon.pixmap(icon.actualSize(QSize(DEFAULT_ICON_SIZE, DEFAULT_ICON_SIZE))))
     byte_array = QByteArray()
     buffer = QBuffer(byte_array)
     buffer.open(QBuffer.OpenModeFlag.WriteOnly)
@@ -152,9 +152,43 @@ def get_item_info(path : str) -> dict:
             "last_modified" : item.lastModified().toSecsSinceEpoch(),
             "icon_data_start": -1,
             "icon_data_end" : -1,
-            "voice_note_id" : -1
+            "note_id" : -1
         }
     return res
+
+def extract_default_icon(extension : str) -> QIcon:
+    """Based on the the data, it gets the QIcon or None. This needs a QApplication to be running in order to work.
+
+    Args:
+        extension (str): The extension with a dot
+
+    Returns:
+        QIcon: The QIcon which can be set during TreeView display. Returns None if CustomIcon
+    """
+    # Attempt a file generation
+    place_holder_exists = False
+    tmp_name = f'tmp{extension}'
+    try:
+        with open(tmp_name, "x") as f:
+            pass
+    except FileExistsError:
+        place_holder_exists = True
+    # Get icon
+    f_info = QFileInfo(extension)
+    icon = None
+    file_icon_provider = QFileIconProvider()
+    try:
+        icon = file_icon_provider.icon(f_info)
+    except Exception:
+        icon = None
+    # Remove incase file exists
+    if not place_holder_exists:
+        file = QFile(tmp_name)
+        if file.exists():
+            file.remove()
+        file.close()
+        file.deleteLater()
+    return icon
 
 def extract_icon_from_bytes(icon_bytes : bytes) -> QIcon:
     """Extracts QIcon saved in bytes, these bytes must be decoded first.

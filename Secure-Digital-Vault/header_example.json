@@ -13,7 +13,7 @@
 
         "file_ids" : [1,2],
         "directory_ids" : [1,2],
-        "voice_note_ids" : [1,2],
+        "note_ids" : [1,2],
 
         "directories" : {
             "1" : {
@@ -49,7 +49,7 @@
                     "last_modified" : 1710070069,
                     "icon_data_start": 9434491,
                     "icon_data_end" : 9447376,
-                    "voice_note_id" : 1
+                    "note_id" : 1
                 }
             } ,
             "2" : {
@@ -67,12 +67,12 @@
                     "last_modified" : 1710081069,
                     "icon_data_start": 3665,
                     "icon_data_end" : 15498,
-                    "voice_note_id" : -1
+                    "note_id" : -1
                 }
             }
         },
 
-        "voice_notes" : {
+        "notes" : {
             "1" : {
                 "id" : 1,
                 "owned_by_file" : 1,

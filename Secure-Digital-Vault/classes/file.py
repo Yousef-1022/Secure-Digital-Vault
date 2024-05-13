@@ -116,7 +116,7 @@ class File:
             "last_modified": int,
             "icon_data_start": int,
             "icon_data_end": int,
-            "voice_note_id": int
+            "note_id": int
         }
 
         for key, expected_type in expected_types.items():
@@ -125,7 +125,7 @@ class File:
             if not isinstance(metadata[key], expected_type):
                 raise InvalidMetaData(f"Key: '{key}' with data: {metadata[key]} is of type: '{type(metadata[key])}' but should be '{expected_type}'")
 
-    def generate_as_dict(self) -> dict:
+    def get_as_dict(self) -> dict:
         """Generates the file as a dict existing in the header
 
         Returns:

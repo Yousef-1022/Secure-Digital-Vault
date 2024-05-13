@@ -49,12 +49,12 @@ class FindFileDialog(QDialog):
         string_name_text = self.find_string_label_edit.text()
         match_string_case = self.match_string_checkbox.isChecked()
         is_encrypted = self.is_encrypted_checkbox.isChecked()
-        voice_note_id = self.has_note_checkbox.isChecked()
+        note_id = self.has_note_checkbox.isChecked()
 
         if extension_text != '' and not self.is_encrypted_checkbox.isChecked():
             self.parent().show_message("Invalid extension", f"The given extension {extension_text} is not a valid extension!", parent=self)
             return
 
         self.hide()
-        self.parent().request_given_files(string_name_text, extension_text, match_string_case, is_encrypted, voice_note_id)
+        self.parent().request_given_files(string_name_text, extension_text, match_string_case, is_encrypted, note_id)
         self.close()

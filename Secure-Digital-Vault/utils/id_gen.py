@@ -6,7 +6,7 @@ def gen_id(lst: list, obj_type: str) -> int:
 
     Args:
         lst (list): list of IDs
-        obj_type (str): the list type of IDs (file_ids, directory_ids, voice_note_ids)
+        obj_type (str): the list type of IDs (file_ids, directory_ids, note_ids)
 
     Raises:
         ClashedIdException: Incase a duplicate ID exists, Exception is raised

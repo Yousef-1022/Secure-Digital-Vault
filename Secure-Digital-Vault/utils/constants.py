@@ -10,11 +10,12 @@ MAGIC_LOG_END = "$endlog$"
 # All keys representing the structure of the vault
 
 VAULT_KEYS = ["vault_name", "vault_extension", "header_size", "file_size", "trusted_timestamp", "amount_of_files", "is_vault_encrypted"]
-MAP_KEYS = ["file_ids", "directory_ids" , "voice_note_ids", "directories", "files", "voice_notes"]
+MAP_KEYS = ["file_ids", "directory_ids" , "note_ids", "directories", "files", "notes"]
 VAULT_CREATION_KEYS = ["Vault Name" , "Vault Extension", "Vault Location", "Password Hint"]
 
 # Utils
 TREE_COLUMNS = ["Name", "Type", "Size", "Data Created", "Data Modified"]
+DEFAULT_ICON_SIZE = 16
 NOTE_LIMIT = 7_340_032   # 7MB
 CHUNK_LIMIT = 52_428_800 # 50MB
 VAULT_BUFFER_LIMIT = 4096

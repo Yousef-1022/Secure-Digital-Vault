@@ -1,6 +1,7 @@
 from custom_exceptions.classes_exceptions import FileError
 from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append
 from utils.extractors import get_icon_from_file
+
 from utils.helpers import get_file_size
 from utils.constants import CHUNK_LIMIT
 
@@ -20,7 +21,8 @@ def encrypt_header(password : str , header : bytes) -> bytes:
     # TODO: Encrypt header
     return header
 
-def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault_path : str, continue_running : MutableBoolean , chunk_size : int = CHUNK_LIMIT) -> list:
+def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault_path : str, continue_running : MutableBoolean,
+                                          chunk_size : int = CHUNK_LIMIT) -> list:
     """Gets the file as bytes, encrypts during reading to avoid memory overhead, and adds it to the vault on disk. Also, adds the icon.
 
     Args:

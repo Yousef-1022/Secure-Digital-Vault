@@ -66,6 +66,16 @@ class Directory:
             "files" : len(self.__files)
         }
 
+    def get_as_dict(self) -> dict:
+        return {
+            "id": self.__id,
+            "name": self.__name,
+            "path": self.__path,
+            "data_created": self.__data_created,
+            "last_modified": self.__last_modified,
+            "files": self.__files
+        }
+
     def validate_mapped_data(self, data : dict) -> bool:
         """Checks whether the passed dict represents a valid Dictionary
 

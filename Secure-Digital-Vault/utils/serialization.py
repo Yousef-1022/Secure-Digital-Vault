@@ -23,10 +23,10 @@ def formulate_header(vault_name : str , extension : str) -> dict:
     map_dict = {
         "file_ids" : [],
         "directory_ids" : [],
-        "voice_note_ids" : [],
+        "note_ids" : [],
         "directories" : {},
         "files" : {},
-        "voice_notes" : {}
+        "notes" : {}
     }
     final_result = {
         "vault" : vault_dict,

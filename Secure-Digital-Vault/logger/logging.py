@@ -1,5 +1,4 @@
-import threading
-import datetime
+import threading , datetime , time
 from logger.log_session import LogSession
 
 
@@ -47,6 +46,15 @@ class Logger:
     def form_log_message(msg : str, level : str = "ATTENTION"):
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return f"{timestamp} [{level}]: Message: {msg}"
+
+    @staticmethod
+    def get_current_time() -> int:
+        """Gets the current time
+
+        Returns:
+            int: Returns the current time
+        """
+        return int(time.time())
 
     def get_all_normal_logs(self) -> str:
         """Returns all the normal logs created

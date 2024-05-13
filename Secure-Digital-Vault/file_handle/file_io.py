@@ -298,7 +298,50 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
     else:
         tmp_fd = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk, byte_loss=byte_loss,
                                at_location=save_location, chunk_size=chunk_size, once=False, fd=file)
-    print(f"overridden {file_path} at_location {at_location}, with byte_loss of: {byte_loss} and given_bytes of: {len(given_bytes)}")
+    return tmp_fd
+
+def delete_bytes_from_file(file_path : str, init_size : int, bytes_to_delete : int, start_index : int,  o_index : int,
+                           chunk_size : int = CHUNK_LIMIT, fd = None):
+    """Deletes bytes from the given spot in the file using recursion and inplace overwrite.
+
+    Args:
+        file_path (str): The location of the file
+        init_size (int): The initial size of the file
+        bytes_to_delete (int): Amount of bytes to delete
+
+        start_index (int): The location of the index to start the deletion from
+        o_index (int): The location of the upcoming index.
+        To calculate, e.g, start_index=420, bytes_to_delete=70, --> o_index = 490
+
+        chunk_size (int, optional): The Size of the chunk to read during every iteration. Defaults to CHUNK_LIMIT.
+        fd: FileDescriptor. It is given to reduce file opening overhead.
+
+    Returns:
+        FileDescriptor (fd): FileDescriptor, which is to be closed by the caller.
+    """
+    if init_size <= 0:
+        if fd:
+            fd.close()
+        return None
+
+    if fd:
+        file = fd
+    else:
+        file = open(file_path, "rb+")
+
+    if o_index >= init_size:
+        file.seek(init_size)
+        remove_bytes_from_ending_of_file(file_path, bytes_to_delete)
+        return file
+
+    file.seek(o_index)
+    bytes = file.read(chunk_size)
+    o_index = file.tell()
+    file.seek(start_index)
+    file.write(bytes)
+    start_index = file.tell()
+
+    tmp_fd = delete_bytes_from_file(file_path, init_size, bytes_to_delete, start_index, o_index, chunk_size, file)
     return tmp_fd
 
 def create_folder_on_disk(path : str) -> bool:

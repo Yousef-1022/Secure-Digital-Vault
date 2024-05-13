@@ -56,7 +56,7 @@ class GetFileWindow(QMainWindow):
 
         # Location label
         self.address_bar = CustomLine(text="", place_holder_text="Path on disk, e.g, D:/path/to/", parent=self.central_widget)
-        self.address_bar.returnPressed.connect(lambda : self.on_extract_button_clicked(self.address_bar.text()))
+        self.address_bar.returnPressed.connect(lambda : self.on_extract_button_clicked())
         self.extract_button = CustomButton("Extract",QIcon(ICON_1), "Extract the items from the vault without deleting them",self.central_widget)
         self.extract_button.set_action(self.on_extract_button_clicked)
 
@@ -139,10 +139,10 @@ class GetFileWindow(QMainWindow):
         self.mythread.start()
 
     def update_extract_progress(self, num_to_update_with : int) -> None:
-        """Updates the extractin progress bar with the given value
+        """Updates the extraction progress bar with the given value
 
         Args:
-            emitted_num (int): _description_
+            emitted_num (int): Num to add into bar
         """
         if num_to_update_with == 100 or self.extraction_progress_bar.value() >= 100:
             self.extraction_progress_bar.stop_progress(False)

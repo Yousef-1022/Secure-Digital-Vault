@@ -80,7 +80,7 @@ class InteractDialog(QDialog):
             message_box.setIcon(QMessageBox.Icon.Critical)
             message_box.setWindowTitle("Empty password")
             message_box.showMessage("The password cannot be empty!")
-            self.set_interaction_default()
+            self.reset_inner_items()
             return
 
         self.__command = "Proceed"

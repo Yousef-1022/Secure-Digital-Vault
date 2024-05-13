@@ -10,14 +10,14 @@ from utils.parsers import parse_size_to_string, show_as_windows_directory
 from utils.extractors import extract_extension
 
 
-class VoiceDialog(QDialog):
+class NoteDialog(QDialog):
 
-    def __init__(self, obj_id : int, parent: VaultView, add_voice : bool = True):
+    def __init__(self, obj_id : int, parent: VaultView, add_note : bool = True):
         super().__init__(parent)
 
 
         self.setWindowTitle("Add Note")
-        if not add_voice:
+        if not add_note:
             self.setWindowTitle("Get Note")
 
         self.__obj_id = obj_id
@@ -27,16 +27,16 @@ class VoiceDialog(QDialog):
 
         self.file_location_label = QLabel("Location of the file", self)
         self.file_location_label_edit = CustomLine(text="",place_holder_text="/path/to/file",parent=self)
-        if not add_voice:
+        if not add_note:
             self.file_location_label.setText("Location to put the note in")
 
         # Extension
-        if add_voice:
+        if add_note:
             self.extension_label = QLabel("Extension type:", self)
             self.extension_label_edit = CustomLine(text="",place_holder_text="Extension with the dot, e.g: .mp3",parent=self)
 
         # Import button
-        if add_voice:
+        if add_note:
             self.import_button = CustomButton("Import", QIcon(ICON_1), "Add the given file as a note" ,self)
             self.import_button.set_action(self.import_note)
         else:
@@ -46,7 +46,7 @@ class VoiceDialog(QDialog):
         # Merge divs
         self.vertical_layout.addWidget(self.file_location_label)
         self.vertical_layout.addWidget(self.file_location_label_edit)
-        if add_voice:
+        if add_note:
             self.vertical_layout.addWidget(self.extension_label)
             self.vertical_layout.addWidget(self.extension_label_edit)
         self.vertical_layout.addWidget(self.import_button)

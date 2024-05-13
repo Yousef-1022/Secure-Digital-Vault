@@ -1,4 +1,5 @@
 from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, QWidget
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7
@@ -23,6 +24,9 @@ import os
 
 
 class VaultSearchWindow(QMainWindow):
+
+    message_show = pyqtSignal(str)
+
     def __init__(self, VaultViewManager : ViewManager):
         super().__init__()
 
@@ -30,6 +34,8 @@ class VaultSearchWindow(QMainWindow):
         self.__view_manager = VaultViewManager
         # Window Data
         self.threads = []
+        self.message_show.connect(self.__show_message)
+
         self.setObjectName("VaultSearchWindow")
         self.setWindowTitle("Vault Search Window")
         self.setWindowIcon(QIcon(ICON_6))
@@ -267,7 +273,7 @@ class VaultSearchWindow(QMainWindow):
             self.mythread = CustomThread(20 , self.decrypt_given_vault.__name__)
             self.threads.append(self.mythread)
 
-            self.worker = Worker(self.decrypt_given_vault, vault_loc, password)
+            self.worker = Worker(self.decrypt_given_vault, vault_loc, password, self.message_show)
             self.worker.moveToThread(self.mythread)
             self.mythread.started.connect(self.worker.run)
 
@@ -318,15 +324,15 @@ class VaultSearchWindow(QMainWindow):
         self.tree_widget.clear()
         self.tree_widget.populate(path)
 
-    def decrypt_given_vault(self, vault_loc : str , password : str):
+    def decrypt_given_vault(self, vault_loc : str , password : str, message_signal : pyqtSignal):
         try:
             actual_header = decrypt_header(vault_loc,password)
         except MagicFailure as e:
-            self.__show_message("Corrupted Vault",Logger.form_log_message(e, "ERROR"), "Error")
+            message_signal.emit(f'Corrupted Vault#{Logger.form_log_message(e, "ERROR")}#Error')
             return
         except DecryptionFailure as e:
-            self.__show_message("Decryption Failure", Logger.form_log_message(e), "Error")
-            return # TODO hint
+            message_signal.emit(f'Decryption Failure#{Logger.form_log_message(e)}#Error')
+            return
         self.__view_manager.set_special_h(actual_header)
         self.__view_manager.set_special_p(password)
         self.__view_manager.set_vault_pointer(vault_loc)
@@ -344,14 +350,21 @@ class VaultSearchWindow(QMainWindow):
         self.exit()
         super().closeEvent(event)
 
-    def __show_message(self, window_title : str, message : str, type : str = "Warning"):
+    def __show_message(self, no_default : str = None, window_title : str = "Default", message : str = "Default", type : str = "Warning"):
         """Display a message box with the given details.
 
         Args:
+            no_default(str): Default state of the message
             window_title(str): the title of the message
             message(str): the message itself
             type(str) optional: type of the icon to show
         """
+        if no_default:
+            tmp = no_default.split("#")
+            window_title = tmp[0]
+            message = tmp[1]
+            if len (tmp) > 2:
+                type = tmp[2]
         message_box = CustomMessageBox(parent=self)
         if type not in [enum.name for enum in QMessageBox.Icon]:
             message_box.setIcon(QMessageBox.Icon.Warning)

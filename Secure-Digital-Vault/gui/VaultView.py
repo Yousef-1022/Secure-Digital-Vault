@@ -8,8 +8,9 @@ from crypto.utils import get_checksum
 from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append
 
 from classes.vault import Vault
-from classes.voice import Voice
+from classes.note import Note
 from classes.file import File
+from classes.directory import Directory
 from custom_exceptions.classes_exceptions import MissingKeyInJson, JsonWithInvalidData
 from logger.logging import Logger
 
@@ -22,6 +23,7 @@ from gui.interactions.find_file_dialog import FindFileDialog
 from gui.interactions.view_file_window import ViewFileWindow
 from gui.interactions.add_file_window import AddFileWindow
 from gui.interactions.get_file_window import GetFileWindow
+from gui.interactions.delete_file_window import DeleteFileWindow
 
 
 class VaultViewWindow(QMainWindow):
@@ -87,6 +89,7 @@ class VaultViewWindow(QMainWindow):
 
         # Delete from Vault
         self.delete_from_vault_button = CustomButton("Delete",QIcon(ICON_1), "Delete file(s) in the vault",self.centralwidget)
+        self.delete_from_vault_button.set_action(lambda : self.open_delete_window(self.tree_widget.getSelectedItems()))
 
         # Find in vault
         self.find_in_vault_button = CustomButton("Find",QIcon(ICON_1), "Find file(s) in the vault",self.centralwidget)
@@ -238,6 +241,29 @@ class VaultViewWindow(QMainWindow):
             self.__get_file_window = None
         self.delete_from_vault_button.setEnabled(True)
 
+    def open_delete_window(self, held_items : list[CustomQTreeWidgetItem]):
+        """On delete button click, show delete window
+        """
+        if not held_items or len(held_items) < 1:
+            return None
+        if not self.__delete_file_window:
+            self.__delete_file_window = DeleteFileWindow(parent=self, items=held_items)
+            self.__delete_file_window.signal_for_destruction.connect(self.destory_delete_file_window)
+            self.__delete_file_window.show()
+        self.add_to_vault_button.setDisabled(True)
+        self.clearFocus()
+
+    def destory_delete_file_window(self, variable):
+        """Destorys the delete file window and cleans up after it
+        """
+        if self.__delete_file_window is not None and variable == "Destroy":
+            print("Destroying add file window.")
+            self.__delete_file_window.list_widget.clear()
+            self.__delete_file_window.deleteLater()
+            self.__delete_file_window.destroy(True,True)
+            self.__delete_file_window = None
+        self.add_to_vault_button.setEnabled(True)
+
     def show_message(self, window_title : str, message : str, type : str = "Warning", parent : QWidget = None):
         """Display a message box with the given details.
 
@@ -301,11 +327,16 @@ class VaultViewWindow(QMainWindow):
         """
         return self.__vault.get_vault_size()
 
-    def request_header_refresh(self): # Called by add_file_window or delete
+    def request_header_refresh(self, refresh_tree : bool = False): # Called by add_file_window or delete
         """Refreshes the header of the vault, and updates the vault on disk
+
+        Args:
+            refresh_tree (bool, optional): Boolean to indicate whether to refresh the tree. Defaults to False.
         """
-        self.__vault.refresh_header()
         # TODO: Thread
+        self.__vault.refresh_header()
+        if refresh_tree:
+            self.tree_widget.populate_from_header(self.__vault.get_map(), self.tree_widget.current_path, self.__vault.get_vault_path())
         self.__vault.update_vault_file()
 
     def request_file_id_addition_into_folder(self, folder_id : int , file_id : int):
@@ -331,7 +362,6 @@ class VaultViewWindow(QMainWindow):
         if len(files) == 0:
             self.show_message("Nothing found", f"Any file{' ' if match_case else ' not '}to match case with the name: '{name}{extension}' which its encryption is: '{is_encrypted}' and note existence is: '{has_note}' could not be found!", parent=self)
             return
-        # TODO: Optimize
         self.tree_widget.populate_by_request(self.__vault.get_map(), files, self.__vault.get_vault_path())
 
     def request_files_from_vault(self, folder_id : int, get_path_as_int : bool, parent_name : str = None) -> list[File]:
@@ -346,6 +376,26 @@ class VaultViewWindow(QMainWindow):
             dict: List of File
         """
         return self.__vault.get_files_belonging_in_id(folder_id, get_path_as_int, parent_name)
+
+    def request_data_shift(self, amount_to_shift : int, direction : bool, at_index : int):
+        """Shifts all the byte indexes in the map after delete according to the given parameters
+
+        Args:
+            amount_to_shift (int): The amount to shift
+            data_index_shifter (int): Target files and notes at this index
+        """
+        self.__vault.data_index_shifter(amount_to_shift, direction, at_index)
+
+    def request_files_and_folders_from_vault(self, belong_to: int) -> list:
+        """Gets a list of Files and Directories which belong to the given id
+
+        Args:
+            belong_to (int): The id that owns the files and folders.
+
+        Returns:
+            list: List of Files and Directories
+        """
+        return self.__vault.get_items_under_id(belong_to)
 
     def request_path_string(self, the_id : int, full_path : bool = True, type : str = "D") -> str:
         """Gets either the full path of the given folder id from the vault, or only the path from the given id
@@ -378,9 +428,28 @@ class VaultViewWindow(QMainWindow):
         if type == "F":
             self.__vault.insert_file(ready_dict)
         elif type == "V":
-            self.__vault.insert_voice_note(ready_dict)
+            self.__vault.insert_note(ready_dict)
         elif type == "D":
             self.__vault.insert_folder(ready_dict)
+
+    def update_folder_in_vault(self, folder : Directory):
+        """Updates the folder data in the vault
+
+        Args:
+            folder (Directory): The folder to update with, this folder must be valid.
+
+        Returns:
+            bool: Upon success
+        """
+        self.__vault.update_folder_in_vault(folder)
+
+    def update_vault_file_size(self, new_size : int):
+        """Updates the vault's file_size key with the new size, this is requested after deletion
+
+        Args:
+            new_size (int): The new size of files in the vault.
+        """
+        self.__vault.update_file_size_of_vault(new_size)
 
     def add_note_to_vault(self, file_loc : str, extension : str, to_file : int):
         """On add note button click, start addition process
@@ -400,7 +469,7 @@ class VaultViewWindow(QMainWindow):
             error_str = stabilize_after_failed_append(self.__vault.get_vault_path(), res[1], res[2], res[3]-res[2])
             error_str += f", could not append note {file_loc} into the vault."
             self.logger.error(error_str)
-            self.show_message("Error", "Couldn't add a voice note. Check logs.", "Error" , parent=self)
+            self.show_message("Error", "Couldn't add a note note. Check logs.", "Error" , parent=self)
             return
         note_id = self.request_new_id("V")
         note_info = {
@@ -411,9 +480,9 @@ class VaultViewWindow(QMainWindow):
             "type" : extension,
             "checksum" : get_checksum(file_loc)
         }
-        the_note = Voice(note_info)
-        self.insert_item_into_vault(the_note.get_dict(), "V")
-        self.request_header_refresh()
+        the_note = Note(note_info)
+        self.insert_item_into_vault(the_note.get_as_dict(), "V")
+        self.request_header_refresh(refresh_tree=False)
         self.add_to_vault_button.setEnabled(True)
         self.delete_from_vault_button.setEnabled(True)
 
@@ -448,6 +517,22 @@ class VaultViewWindow(QMainWindow):
         self.show_message(msg_title, msg, "Information", self)
         return
 
+    def get_item_class_from_vault(self, item_id : int, type : str) -> object:
+        """Gets the item with the given id and type from the vault
+
+        Args:
+            item_id (int): The id of the item
+            type (str): The letter of the item (F,D,V)
+
+        Returns:
+            object: The item itself
+        """
+        res = self.__vault.get_id_from_vault(item_id, type, False)
+        if not res[0]:
+            self.logger.error(res[1])
+            return None
+        return res[1]
+
     def update_file_data_in_vault(self, file : File):
         """On view file exit, update the header incase it was modified
 
@@ -456,9 +541,9 @@ class VaultViewWindow(QMainWindow):
         """
         if not file:
             return
-        file.validate_mapped_data(file.generate_as_dict())
+        file.validate_mapped_data(file.get_as_dict())
         self.__vault.update_file_in_vault(file)
-        self.request_header_refresh()
+        self.request_header_refresh(refresh_tree=False)
 
     def remove_folder_without_files(self, folder_id : int):
         """Removes the folder from the vault, it shall not contain any files.
@@ -473,6 +558,22 @@ class VaultViewWindow(QMainWindow):
             return
         else:
             self.logger.error(res[1])
+
+    def remove_file_from_vault(self, file_id : int):
+        """Removes the file from the vault
+
+        Args:
+            file_id (int): The file_id to remove
+        """
+        self.__vault.remove_file(file_id)
+
+    def remove_note_from_vault(self, note_id : int):
+        """Removes the note from the vault
+
+        Args:
+            note_id (int): The folder_id to remove
+        """
+        self.__vault.remove_note(note_id)
 
     def closeEvent(self, event):
         """Override for close window for safe shutdown.

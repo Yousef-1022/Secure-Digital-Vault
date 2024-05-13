@@ -1,11 +1,11 @@
 from PyQt6.QtWidgets import QTreeWidget, QWidget, QFileIconProvider, QStyle, QMessageBox, QApplication
-from PyQt6.QtCore import QDir, QFileInfo, Qt , pyqtSignal, QRect
+from PyQt6.QtCore import QDir, QFileInfo, Qt , pyqtSignal, QRect, QSize
 from PyQt6.QtGui import QMouseEvent , QKeyEvent
 
 from utils.parsers import parse_size_to_string, parse_timestamp_to_string
 from utils.extractors import get_file_from_vault, extract_icon_from_bytes
 from utils.helpers import get_available_drives
-from utils.constants import TREE_COLUMNS
+from utils.constants import TREE_COLUMNS, DEFAULT_ICON_SIZE
 
 from classes.file import File
 from classes.directory import Directory
@@ -38,9 +38,13 @@ class CustomTreeWidget(QTreeWidget):
             header_map(dict): the header_map dictionary
         """
         super().__init__(parent)
+
+        # data
+        self.setIconSize(QSize(DEFAULT_ICON_SIZE, DEFAULT_ICON_SIZE))
         self.vaultview = vaultview
         self.__vaultpath = vaultpath
         self.__header_map = header_map
+        self.current_path = 0
 
         self.headers=None
         self.update_columns_with(TREE_COLUMNS)
@@ -126,6 +130,7 @@ class CustomTreeWidget(QTreeWidget):
         current_id = self.currentItem().get_path() if self.currentItem() is not None else 0
         if goto_dir > 0 and str(goto_dir) not in header_map["directories"].keys():
             return False
+        self.current_path = goto_dir
 
         cleard_once = False # Indicator to clear the tree once, this must be True if the directory is found
         skip_files = False  # Indicator incase the current directory does not have files
@@ -178,12 +183,10 @@ class CustomTreeWidget(QTreeWidget):
             for entry in header_map["files"].values():
                 if entry["path"] == goto_dir:
                     file = File(entry)
-                    # TODO logger File is invalid
                     item = CustomQTreeWidgetItem([file.get_metadata()["name"]])
                     icon_bytes = get_file_from_vault(vault_path,file.get_metadata()["icon_data_start"],file.get_metadata()["icon_data_end"])
                     icon = extract_icon_from_bytes(icon_bytes)
                     item.set_path(file.get_path()) # the file item must point to where it is.
-                    #TODO: icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent)
                     item.setIcon(0, icon)
                     item.set_saved_obj(file)
                     self.set_item_text(item, file)
@@ -210,20 +213,20 @@ class CustomTreeWidget(QTreeWidget):
             self.update_columns_with(new_columns)
         else:
             self.update_columns_with(self.headers)
+
         for f in file_dicts:
             file = File(f)
-            # TODO logger File is invalid
             item = CustomQTreeWidgetItem([file.get_metadata()["name"]])
             icon_bytes = get_file_from_vault(vault_path,file.get_metadata()["icon_data_start"],file.get_metadata()["icon_data_end"])
             icon = extract_icon_from_bytes(icon_bytes)
             item.set_path(file.get_path()) # the file item must point to where it is.
-            #TODO: icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent)
             item.setIcon(0, icon)
             item.set_saved_obj(file)
             item.set_in_vault_location(Vault.determine_directory_path(item.get_path(), header_map["directories"]))
             self.set_item_text(item, file)
             self.addTopLevelItem(item)
         self.setCurrentItem(self.topLevelItem(0))
+        self.current_path = 0
         return True
 
     def resize_columns(self, extra_pixels : int = 0) -> None:

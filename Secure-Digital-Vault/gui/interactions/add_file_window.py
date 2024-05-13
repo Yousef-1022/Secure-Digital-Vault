@@ -37,7 +37,7 @@ class AddFileWindow(QMainWindow):
 
         # Data
         self.threads = []
-        self.__import_running = MutableBoolean(False)  # Can be requested to cancel operation
+        self.__import_is_running = MutableBoolean(False)  # Can be requested to cancel operation
         self.__signaled_for_destruction = False
         # Window Data
         self.setObjectName("AddFileWindow")
@@ -226,12 +226,11 @@ class AddFileWindow(QMainWindow):
 
         # Start import
         self.__lock_or_unlock_all(True)
-        self.__import_running.set_value(True)
+        self.__import_is_running.set_value(True)
 
         self.mythread = CustomThread(allowed_runtime=100,function_name_to_handle="import_items")
         self.threads.append(self.mythread)
-
-        self.worker = Worker(self.__process_import, selected_items, self.__import_running, folder_total, id_to_insert_into=insert_into)
+        self.worker = Worker(self.__process_import, selected_items, self.__import_is_running, folder_total, id_to_insert_into=insert_into)
         self.worker.args += (self.worker.progress, )    # Force add a signal progress
 
         self.worker.progress.connect(self.update_add_progress)
@@ -240,12 +239,17 @@ class AddFileWindow(QMainWindow):
 
         def __end_worker_activity(emitted_result):
             self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
+            if not self.__import_is_running.get_value(): # Caused by Abort
+                self.__import_is_running.set_value(True) # Will be turned by the following function
+                if insert_into == self.tree_widget.current_path:
+                    self.__update_header(refresh_tree=True)
+                else:
+                    self.__update_header(refresh_tree=False)
             self.worker.deleteLater()
         self.worker.finished.connect(__end_worker_activity)
 
         def __end_thread_activity():
-            self.__import_running.set_value(False)
-            self.__update_header()  # After import, the vault must have saved information.
+            self.__update_header(refresh_tree=False)  # After import, the vault must have saved information.
             self.__clean_import()
             self.mythread.quit()
         self.mythread.timeout_signal.connect(__end_thread_activity)
@@ -275,7 +279,7 @@ class AddFileWindow(QMainWindow):
     def closeEvent(self, event):
         """Override for close window incase import is running.
         """
-        if self.__import_running.get_value():
+        if self.__import_is_running.get_value():
             event.ignore()
             message_box = CustomMessageBox(parent=self)
             message_box.setIcon(QMessageBox.Icon.Warning)
@@ -292,25 +296,28 @@ class AddFileWindow(QMainWindow):
         print("CLEAN")
         self.add_progress_bar.resetFormat()
         self.add_progress_bar.stop_progress(False)
-        self.__import_running.set_value(False)
+        self.__import_is_running.set_value(False)
         self.__lock_or_unlock_all(False)
         self.import_button.setDisabled(False)
         self.import_button.setText("Import")
         self.import_button.button_label = "Import"
         self.import_button.context_box_text = "Import Selected Items"
 
-    def __update_header(self) -> None:
+    def __update_header(self, refresh_tree : bool = True) -> None:
         """Refreshes the header, and modifies the vault itself.
+
+        Args:
+            refresh_tree (bool, optional): Boolean to indicate whether to update the tree view. Defaults to True.
         """
-        if not self.__import_running.get_value():
-            self.parent().request_header_refresh()
-            self.__import_running.set_value(False) # BruteForce
+        if self.__import_is_running.get_value():
+            self.__import_is_running.set_value(False) # BruteForce
+            self.parent().request_header_refresh(refresh_tree)
 
     def update_add_progress(self, num_to_update_with : int) -> None:
         """Updates the progress bar with the given value
 
         Args:
-            emitted_num (int): _description_
+            emitted_num (int): Num to add into bar
         """
         if num_to_update_with == 100 or self.add_progress_bar.value() >= 100:
             self.add_progress_bar.stop_progress(False)
@@ -321,7 +328,9 @@ class AddFileWindow(QMainWindow):
         else:
             self.add_progress_bar.setValue(num_to_update_with + current_value)
 
-    def __process_import(self, selected_items : list[tuple[str,str]], continue_running : MutableBoolean, recursions : int, signal : pyqtSignal, call_num : MutableInteger = MutableInteger(0), id_to_insert_into : int = 0):
+    def __process_import(self, selected_items : list[tuple[str,str]],
+                         continue_running : MutableBoolean, recursions : int, signal : pyqtSignal,
+                         call_num : MutableInteger = MutableInteger(0), id_to_insert_into : int = 0):
         """Function to perform the actual import of the items in the list
 
         Args:
@@ -335,9 +344,8 @@ class AddFileWindow(QMainWindow):
         """
         # Handle ID REMOVAL INCASE OF ABORT
         if not continue_running.get_value():
-            self.parent().remove_folder_without_files(id_to_insert_into)
-            signal.emit(100)
-            return
+            self.parent().remove_folder_without_files(id_to_insert_into) # This id valid, since in the next recursion abort may be turned on.
+            return None
 
         # Progress bar details
         progress_increase = 0
@@ -358,7 +366,8 @@ class AddFileWindow(QMainWindow):
                 res["path"] = id_to_insert_into
                 new_id_to_insert_into = res["id"]
                 self.parent().insert_item_into_vault(res, "D")
-                self.__process_import(get_files_and_folders_paths(folder[1]), continue_running, recursions, signal, call_num=call_num , id_to_insert_into=new_id_to_insert_into)
+                self.__process_import(get_files_and_folders_paths(folder[1]), continue_running,
+                                      recursions, signal, call_num=call_num, id_to_insert_into=new_id_to_insert_into)
             else:
                 amount_of_files += 1
 
@@ -371,9 +380,11 @@ class AddFileWindow(QMainWindow):
 
         # Go through files
         for file in selected_items:
-            if continue_running.get_value() and file[0] != "Folder":
-                import time
-                time.sleep(0.3) #TODO: Remove this
+
+            if not continue_running.get_value():
+                return None
+
+            if file[0] != "Folder":
 
                 lst = None
                 try:
@@ -402,7 +413,7 @@ class AddFileWindow(QMainWindow):
                     self.parent().logger.error(f"Couldn't add {file[1]} because list values {lst} are incomplete.")
                     continue
                 if len(lst) == 4:
-                    self.parent().logger.warn(f"Couldn't add {file[1]} icon because {lst[3]}")
+                    self.parent().logger.error(f"Couldn't add {file[1]} icon because {lst[3]}")
                 elif len(lst) == 5:
                     res["metadata"]["icon_data_start"] = lst[3]
                     res["metadata"]["icon_data_end"] = lst[4]
@@ -415,11 +426,12 @@ class AddFileWindow(QMainWindow):
                     signal.emit(to_emit)
         if progress_increase > cntr:
             signal.emit(progress_increase-cntr)
+        return None
 
     def __initiate_abort(self) -> None:
         """Start the abortion of the import process
         """
-        self.__import_running.set_value(False)
+        self.__import_is_running.set_value(False)
         self.__lock_or_unlock_all(True)
         self.import_button.setDisabled(True)
         self.add_progress_bar.setFormat("Stopping..")
@@ -428,7 +440,7 @@ class AddFileWindow(QMainWindow):
         """Cleans up any available threads and tries to close them along with the window.
         """
         self.clearFocus()
-        self.__import_running.set_value(False)
+        self.__import_is_running.set_value(False)
         self.__signaled_for_destruction = True
         for t in self.threads:
             t.exit()

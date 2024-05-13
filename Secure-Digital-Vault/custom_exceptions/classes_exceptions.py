@@ -7,13 +7,13 @@ class FileDoesNotExist(Exception):
         super().__init__(self.message)
 
 class JsonWithInvalidData(Exception):
-    """Exception when a certain JSON (header,footer,map) has invalid data inside"""
+    """Exception when a certain JSON (header,map) has invalid data inside"""
     def __init__(self, message):
         self.message = f"JsonWithInvalidData: {message}"
         super().__init__(self.message)
 
 class MissingKeyInJson(Exception):
-    """Exception when a certain JSON (header,footer,map) has a missing mandatory key inside"""
+    """Exception when a certain JSON (header,map) has a missing mandatory key inside"""
     def __init__(self, message):
         self.message = f"MissingKeyInJson: {message}"
         super().__init__(self.message)
