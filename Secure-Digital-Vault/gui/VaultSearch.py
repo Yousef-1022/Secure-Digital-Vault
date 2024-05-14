@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QIcon
 
-from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7
+from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
 from utils.helpers import is_proper_extension
 from logger.logging import Logger
 
@@ -39,9 +39,10 @@ class VaultSearchWindow(QMainWindow):
         self.setObjectName("VaultSearchWindow")
         self.setWindowTitle("Vault Search Window")
         self.setWindowIcon(QIcon(ICON_6))
-        self.setMinimumWidth(800)
-        self.setMinimumHeight(600)
-        self.resize(1024, 768)
+        self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
+        self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
+        self.resize(800, 600)
+        #self.screen
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
@@ -57,7 +58,7 @@ class VaultSearchWindow(QMainWindow):
         self.upper_vertical_layout2 = QVBoxLayout()      # (Insert Button + Drive)
 
         # Address -> upper_vertical_layout1
-        self.address_bar = CustomLine(text=current_address,place_holder_text="Address path, e.g, C:\Program Files",parent=self.centralwidget)
+        self.address_bar = CustomLine(text=current_address,place_holder_text="Address path, e.g, C:\\Program Files",parent=self.centralwidget)
         self.address_bar.returnPressed.connect(lambda : self.on_insert_button_clicked(self.address_bar.text()))
         self.upper_vertical_layout1.addWidget(self.address_bar)
 
@@ -347,6 +348,7 @@ class VaultSearchWindow(QMainWindow):
         """
         if self.__view_manager:
             self.__view_manager.signal_to_open_window.emit("")
+            self.__view_manager = None
         self.exit()
         super().closeEvent(event)
 

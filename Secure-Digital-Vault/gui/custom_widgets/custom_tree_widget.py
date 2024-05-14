@@ -156,7 +156,6 @@ class CustomTreeWidget(QTreeWidget):
                     self.addTopLevelItem(upper_level)
 
                 the_directory = Directory(dir)
-                # TODO logger Directory is invalid
                 icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
                 directory_item = CustomQTreeWidgetItem([the_directory.get_name()])
                 directory_item.set_path(the_directory.get_id()) # the item must point to what's inside it.
@@ -387,12 +386,13 @@ class CustomTreeWidget(QTreeWidget):
         if event.key() == Qt.Key.Key_Return and self.currentItem():
             if self.currentItem().text(1) in ("Folder", "UpOneLevel"):
                 if self.vaultview:
-                    self.populate_from_header(header_map=self.__header_map, goto_dir=self.currentItem().get_path(),vault_path=self.__vaultpath)
                     the_goto_path = Vault.determine_directory_path(self.currentItem().get_path(),self.__header_map["directories"])
+                    self.populate_from_header(header_map=self.__header_map, goto_dir=self.currentItem().get_path(),vault_path=self.__vaultpath)
                     self.updated_signal.emit(the_goto_path)
                 else:
+                    go_to = self.currentItem().get_path()
                     self.populate(self.currentItem().get_path())
-                    self.updated_signal.emit(self.currentItem().get_path())
+                    self.updated_signal.emit(go_to)
             else:
                 self.clicked_file_signal.emit(self.currentItem().get_path())
         elif event.key() == Qt.Key.Key_Backspace:

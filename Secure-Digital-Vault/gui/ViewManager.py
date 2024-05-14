@@ -7,7 +7,7 @@ from gui.VaultView import VaultViewWindow
 from gui.VaultCreate import VaultCreateWindow
 from gui.custom_widgets.custom_button import CustomButton
 
-from utils.constants import ICON_1
+from utils.constants import ICON_1, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
 
 
 class WindowManager(QMainWindow):
@@ -28,14 +28,13 @@ class WindowManager(QMainWindow):
         self.__VaultSearchView = None
         self.__VaultView = None
 
-
         # QtData
         self.setObjectName("Vault Manager")
         self.setWindowTitle("Vault Manager")
         self.setWindowIcon(QIcon(ICON_1))
-        self.setMinimumWidth(640)
-        self.setMinimumHeight(480)
-        self.resize(640, 480)
+        self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
+        self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
+        self.resize(800, 600)
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
@@ -83,56 +82,49 @@ class WindowManager(QMainWindow):
     def handle_window(self, signal : str):
         if signal == "VaultSearch":
             self.__VaultCreateView_exit()
-            self.__VaultView_exit()
             self.__show_VaultSearch()
         elif signal == "VaultCreate":
             self.__VaultSearchView_exit()
-            self.__VaultView_exit()
             self.__show_VaultCreate()
         elif signal == "VaultView":
             self.__VaultCreateView_exit()
             self.__VaultSearchView_exit()
             self.__show_VaultView()
         else:
-            self.show()
             self.__VaultSearchView_exit()
             self.__VaultCreateView_exit()
-            self.__VaultView_exit()
+            self.show()
         return
 
     def __show_VaultSearch(self):
         if not self.__VaultSearchView:
             self.__VaultSearchView = VaultSearchWindow(self)
         self.setParent(self.__VaultSearchView)
-        self.__VaultSearchView.show()
         self.hide()
+        self.__VaultSearchView.show()
 
     def __VaultSearchView_exit(self):
         if self.__VaultSearchView:
             self.__VaultSearchView.tree_widget.clear()
             self.__VaultSearchView.exit()
             self.__VaultSearchView.deleteLater()
-            self.__VaultSearchView.destroy(True,True)
             self.__VaultSearchView = None
         self.setParent(None)
-        self.show()
 
     def __show_VaultCreate(self):
         if not self.__VaultCreateView:
             self.__VaultCreateView = VaultCreateWindow(self)
         self.setParent(self.__VaultCreateView)
-        self.__VaultCreateView.show()
         self.hide()
+        self.__VaultCreateView.show()
 
     def __VaultCreateView_exit(self):
         if self.__VaultCreateView:
             self.__VaultCreateView.item_list_widget.clear()
             self.__VaultCreateView.exit()
             self.__VaultCreateView.deleteLater()
-            self.__VaultCreateView.destroy(True,True)
             self.__VaultCreateView = None
         self.setParent(None)
-        self.show()
 
     def __show_VaultView(self):
         if not self.__VaultView:
@@ -141,14 +133,6 @@ class WindowManager(QMainWindow):
         self.__VaultView.show()
         self.hide()
         self.close_self()
-
-    def __VaultView_exit(self):
-        if self.__VaultView:
-            self.__VaultView.tree_widget.clear()
-            self.__VaultView.exit()
-            self.__VaultView.deleteLater()
-            self.__VaultView = None
-            self.close_self()
 
     def close_self(self):
         self.__VaultCreateView_exit()
@@ -159,6 +143,5 @@ class WindowManager(QMainWindow):
         for t in self.threads:
             t.exit()
         self.threads.clear()
-        self.hide()
         self.close()
         self.deleteLater()

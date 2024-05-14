@@ -178,8 +178,6 @@ class GetFileWindow(QMainWindow):
         for file in lst:
             password = None
 
-            time.sleep(0.3) #TODO: Remove this
-
             # Check if file encrypted, open dialog:
             if file.get_file_encrypted():
                 # Set interactable object data. 0 = KeepRunning (bool), 1 = RequestType (str), 2 = Name (str)
@@ -219,7 +217,7 @@ class GetFileWindow(QMainWindow):
                 self.parent().logger.log(f"Couldn't create location: {folder_location}")
                 continue
 
-            # TODO: 1:Better get, 2: Decrypt while get. If password is not None (For if Encrypted)
+            # TODO: 1: Decrypt while get. 2: If password is not None (For if Encrypted)
             file_from_vault = get_file_from_vault(vault_loc, file.get_loc_start(), file.get_loc_end())
             res = append_bytes_into_file(folder_location, file_from_vault, create_file=True, file_name=full_file_name)
 

@@ -9,7 +9,7 @@ from gui.threads.mutable_boolean import MutableBoolean
 
 
 def encrypt_header(password : str , header : bytes) -> bytes:
-    """Encrypts the header with PLACEHOLDER
+    """Encrypts the header with AES
 
     Args:
         password (str): Password.
@@ -56,7 +56,6 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
     encrypted_file_size = 0
     added_bytes = 0
 
-    # TODO: Lock vault file with OS before appending. PASS ABORT BOOLEAN
     with open(file_path, "rb") as file:
         while continue_running.get_value():
             chunk = None
@@ -79,7 +78,6 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
             added_bytes += len(chunk)
             if file.tell() == file_size:
                 break
-    # TODO: Close lock
 
     res = get_file_size(vault_path)
     new_vault_size = res

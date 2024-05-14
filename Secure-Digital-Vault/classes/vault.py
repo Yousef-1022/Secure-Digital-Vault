@@ -373,7 +373,7 @@ class Vault:
                 except KeyError:
                     raise MissingKeyInJson(f"Key '{key}' does not exist in the 'map' dict!")
 
-    # Footer Validators _ TODO
+    # TODO: Footer Validators for the log trial
     def validate_footer(self, full_footer:bytes) -> dict:
         """Validates the full footer represented in bytes
 

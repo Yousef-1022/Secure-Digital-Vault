@@ -15,16 +15,18 @@ VAULT_CREATION_KEYS = ["Vault Name" , "Vault Extension", "Vault Location", "Pass
 
 # Utils
 TREE_COLUMNS = ["Name", "Type", "Size", "Data Created", "Data Modified"]
-DEFAULT_ICON_SIZE = 16
-NOTE_LIMIT = 7_340_032   # 7MB
-CHUNK_LIMIT = 52_428_800 # 50MB
-VAULT_BUFFER_LIMIT = 4096
+DEFAULT_ICON_SIZE = 16      # 16x16
+NOTE_LIMIT = 7_340_032      # 7MB
+CHUNK_LIMIT = 52_428_800    # 50MB
+VAULT_BUFFER_LIMIT = 4096   # 4KB
+MINIMUM_WINDOW_WIDTH = 640  # 640x480
+MINIMUM_WINDOW_HEIGHT = 480 # 640x480
 
 # All icons
-ICON_1 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon1.png"
-ICON_2 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon2.png"
-ICON_3 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon3.png"
-ICON_4 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon4.png"
-ICON_5 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon5.png"
-ICON_6 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon6.png"
-ICON_7 = "D:\\Thesis\Secure-Digital-Vault\\assets\\icon7.png"
+ICON_1 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon1.png"
+ICON_2 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon2.png"
+ICON_3 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon3.png"
+ICON_4 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon4.png"
+ICON_5 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon5.png"
+ICON_6 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon6.png"
+ICON_7 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon7.png"

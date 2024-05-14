@@ -35,7 +35,7 @@ def decrypt_header(vault_location : str,  password : str) -> bytes:
     if len(error) != 0:
         raise MagicFailure(error)
     header = get_file_from_vault(vault_location, header_start+magic_start_len, header_pad)
-    ### TODO: DECRYPT HEADER
+    #TODO: DECRYPT HEADER
     return header
 
 def decrypt_password_storage(password : bytes) -> str:
@@ -47,5 +47,5 @@ def decrypt_password_storage(password : bytes) -> str:
     Returns:
         str: Decrypted password
     """
-    ### TODO: Decrypt password tmp storage
+    #TODO: Decrypt password tmp storage
     return str(password)

@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QMes
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import pyqtSignal
 
-from utils.constants import ICON_1, ICON_2, ICON_3, ICON_6
+from utils.constants import ICON_1, ICON_2, ICON_3, ICON_6, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
 from utils.extractors import get_files_and_folders_paths, get_item_info, get_amount_of_files_or_folders
 from custom_exceptions.classes_exceptions import FileError
 
@@ -43,8 +43,8 @@ class AddFileWindow(QMainWindow):
         self.setObjectName("AddFileWindow")
         self.setWindowTitle("Add Content")
         self.setWindowIcon(QIcon(ICON_6))
-        self.setMinimumWidth(800)
-        self.setMinimumHeight(600)
+        self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
+        self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
         self.resize(800, 600)
 
         self.centralwidget = QWidget(self)
@@ -60,7 +60,7 @@ class AddFileWindow(QMainWindow):
         self.upper_vertical_layout2 = QVBoxLayout()      # (Insert Button + Drive)
 
         # Address -> upper_vertical_layout1
-        self.address_bar = CustomLine(text=current_address,place_holder_text="Address path, e.g, C:\Program Files",parent=self.centralwidget)
+        self.address_bar = CustomLine(text=current_address,place_holder_text="Address path, e.g, C:\\Program Files",parent=self.centralwidget)
         self.address_bar.returnPressed.connect(lambda : self.on_insert_button_clicked(self.address_bar.text()))
         self.upper_vertical_layout1.addWidget(self.address_bar)
 

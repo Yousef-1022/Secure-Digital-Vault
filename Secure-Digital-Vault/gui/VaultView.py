@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QMessageBox
 from PyQt6.QtGui import QIcon
 
-from utils.constants import ICON_1, NOTE_LIMIT
+from utils.constants import ICON_1, NOTE_LIMIT, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
 from utils.parsers import parse_directory_string
 from utils.extractors import get_file_from_vault
 from crypto.utils import get_checksum
@@ -43,10 +43,11 @@ class VaultViewWindow(QMainWindow):
         self.__vault = Vault(password, vault_path)
         try:
             self.__vault.set_header(self.__vault.validate_header(header))
+        # TODO: Let know the user that there is a problem with the header.
         except MissingKeyInJson as e:
-            print(e) # TODO
+            print(e)
         except JsonWithInvalidData as e:
-            print(e) # TODO
+            print(e)
 
         # Windows Data
         self.__add_file_window = None
@@ -55,8 +56,8 @@ class VaultViewWindow(QMainWindow):
         self.setObjectName("VaultViewWindow")
         self.setWindowTitle("Vault View Window")
         self.setWindowIcon(QIcon(ICON_1))
-        self.setMinimumWidth(800)
-        self.setMinimumHeight(600)
+        self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
+        self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
         self.resize(1024, 768)
 
         # Window References are kept , they go out of scope and are garbage collected, which will destroy the underlying C++ obj.
@@ -126,6 +127,9 @@ class VaultViewWindow(QMainWindow):
 
         # Additional information labels can be added here
         self.setCentralWidget(self.centralwidget)
+        # Status bar
+        self.setStatusBar(self.statusBar())
+        self.statusBar().showMessage(f"You're viewing the Vault: {self.__vault.get_vault_path()}")
 
     # Button insert handle results
     def on_insert_button_clicked(self, path : str, check_location_only : bool = False):
@@ -333,7 +337,7 @@ class VaultViewWindow(QMainWindow):
         Args:
             refresh_tree (bool, optional): Boolean to indicate whether to refresh the tree. Defaults to False.
         """
-        # TODO: Thread
+        # TODO: Let another Thread do this
         self.__vault.refresh_header()
         if refresh_tree:
             self.tree_widget.populate_from_header(self.__vault.get_map(), self.tree_widget.current_path, self.__vault.get_vault_path())
@@ -384,6 +388,8 @@ class VaultViewWindow(QMainWindow):
             amount_to_shift (int): The amount to shift
             data_index_shifter (int): Target files and notes at this index
         """
+        if amount_to_shift == 0:
+            return
         self.__vault.data_index_shifter(amount_to_shift, direction, at_index)
 
     def request_files_and_folders_from_vault(self, belong_to: int) -> list:
@@ -579,7 +585,7 @@ class VaultViewWindow(QMainWindow):
         """Override for close window for safe shutdown.
         """
         print(f'({self.logger.get_all_logs()})')
-        #TODO: More logic
+        #TODO: Maybe More Info for safeShutdown
         super().closeEvent(event)
 
     def exit(self) -> None:
@@ -590,4 +596,4 @@ class VaultViewWindow(QMainWindow):
         self.threads.clear()
         self.hide()
         self.close()
-        # TODO other data
+        # TODO other data when closing VaultView

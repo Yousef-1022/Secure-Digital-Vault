@@ -10,7 +10,7 @@ from gui.custom_widgets.custom_messagebox import CustomMessageBox
 
 from file_handle.file_io import append_bytes_into_file, add_magic_into_header, header_padder
 
-from utils.constants import VAULT_CREATION_KEYS , ICON_1, VAULT_BUFFER_LIMIT
+from utils.constants import VAULT_CREATION_KEYS , ICON_1, VAULT_BUFFER_LIMIT, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
 from utils.serialization import serialize_dict, formulate_header
 from utils.helpers import is_proper_extension, is_location_ok
 
@@ -31,9 +31,9 @@ class VaultCreateWindow(QMainWindow):
         self.setObjectName("Vault Creator")
         self.setWindowTitle("Vault Creator")
         self.setWindowIcon(QIcon(ICON_1))
-        self.setMinimumWidth(640)
-        self.setMinimumHeight(480)
-        self.resize(640, 480)
+        self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
+        self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
+        self.resize(800, 600)
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
@@ -251,6 +251,7 @@ class VaultCreateWindow(QMainWindow):
         """
         if self.__view_manager:
             self.__view_manager.signal_to_open_window.emit("")
+            self.__view_manager = None
         self.exit()
         super().closeEvent(event)
 

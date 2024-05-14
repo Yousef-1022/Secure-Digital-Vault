@@ -167,7 +167,7 @@ class DeleteFileWindow(QMainWindow):
             delete_cur_folder (bool): Boolean to indicate whether to delete the current folder during the current iteration. ONLY USED BY RECURSION.
         """
 
-        if not continue_running.get_value():
+        if not continue_running.get_value() or len(items) == 0:
             return
 
         # Progress bar details
@@ -213,7 +213,17 @@ class DeleteFileWindow(QMainWindow):
                     deleted_bytes += bytes_to_delete
                     self.parent().request_data_shift(amount_to_shift = bytes_to_delete, direction = False, at_index = note_start)
 
-                # 2: Delete Icon
+                # 2: Delete File
+                print(f"Deleting file {obj}")
+                init_size = get_file_size(vault_loc)
+                bytes_to_delete = loc_file_end-loc_file_start
+                o_index = loc_file_start + bytes_to_delete
+                fd = delete_bytes_from_file(file_path=vault_loc, init_size=init_size, bytes_to_delete=bytes_to_delete,
+                   start_index=loc_file_start, o_index=o_index, fd=fd)
+                deleted_bytes += bytes_to_delete
+                self.parent().request_data_shift(amount_to_shift = bytes_to_delete, direction = False, at_index = loc_file_start)
+
+                # 3: Delete Icon
                 if loc_icon_start != -1 and loc_icon_end != -1:
                     print(f"Deleting icon {loc_icon_end} - {loc_icon_start} of {obj}")
                     init_size = get_file_size(vault_loc)
@@ -223,15 +233,6 @@ class DeleteFileWindow(QMainWindow):
                        start_index=loc_icon_start, o_index=o_index, fd=fd)
                     deleted_bytes += bytes_to_delete
                     self.parent().request_data_shift(amount_to_shift = bytes_to_delete, direction = False, at_index = loc_icon_start)
-
-                # 3: Delete File
-                init_size = get_file_size(vault_loc)
-                bytes_to_delete = loc_file_end-loc_file_start
-                o_index = loc_file_start + bytes_to_delete
-                fd = delete_bytes_from_file(file_path=vault_loc, init_size=init_size, bytes_to_delete=bytes_to_delete,
-                   start_index=loc_file_start, o_index=o_index, fd=fd)
-                deleted_bytes += bytes_to_delete
-                self.parent().request_data_shift(amount_to_shift = bytes_to_delete, direction = False, at_index = loc_file_start)
 
                 # 4: Remove file from Vault and Folder
                 fd.close()
@@ -299,6 +300,8 @@ class DeleteFileWindow(QMainWindow):
         self.delete_button.button_label = "Delete"
         self.delete_button.context_box_text = "Delete Selected Items"
         self.return_button.setEnabled(True)
+        self.list_widget.clear()
+        self.items.clear()
 
     def closeEvent(self, event):
         """Override for close window incase import is running.

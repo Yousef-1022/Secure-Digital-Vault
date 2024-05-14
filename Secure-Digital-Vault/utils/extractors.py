@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QByteArray, QFileInfo, QBuffer, QSize, QDir, QFile
+from PyQt6.QtCore import QByteArray, QFileInfo, QBuffer, QSize, QDir, QFile, QIODevice, QDataStream
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import QFileIconProvider
 from utils.constants import CHUNK_LIMIT, DEFAULT_ICON_SIZE
@@ -44,9 +44,9 @@ def get_icon_from_file(file_loc : str) -> bytes:
     file_info = QFileInfo(file_loc)
     file_icon_provider = QFileIconProvider()
     icon = file_icon_provider.icon(file_info)
-    if icon.isNull():
+    if not icon or icon.isNull():
         return None
-    pixmap = QPixmap(icon.pixmap(icon.actualSize(QSize(DEFAULT_ICON_SIZE, DEFAULT_ICON_SIZE))))
+    pixmap = QPixmap(icon.pixmap(QSize(DEFAULT_ICON_SIZE, DEFAULT_ICON_SIZE))) # does not work constantly with PyQT 6.4
     byte_array = QByteArray()
     buffer = QBuffer(byte_array)
     buffer.open(QBuffer.OpenModeFlag.WriteOnly)

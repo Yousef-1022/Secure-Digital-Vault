@@ -195,13 +195,11 @@ class ViewFileWindow(QMainWindow):
             list: First index is boolean value whether its successful or not, second is error if yes,
             third is new ending loc index, fourth is old ending loc index
         """
-        # TODO:
+        # TODO: Encrypt/Decrypt viewFile
         print(f"Please process {vault_path} from index {file_start_loc} with password: {password}")
         new_file_end_loc = file_end_loc
         res = [True, "", file_end_loc, new_file_end_loc]
         progress_signal.emit(1)
-        import time
-        time.sleep(0.3) #TODO: Remove this
         return res
 
     def __add_note(self):
