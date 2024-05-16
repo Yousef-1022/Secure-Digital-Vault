@@ -6,14 +6,47 @@ from utils.constants import MAGIC_HEADER_START
 
 from file_handle.file_io import find_header_pointers
 
+from crypto.utils import generate_aes_key
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 
-# To decrypt, how about you find the requested header, and see if you were able to decrypt it. S
+
+def decrypt_bytes(ciphertext : bytes, password : str) -> bytes:
+    """
+    Decrypts AES-encrypted bytes.
+
+    Args:
+        ciphertext (bytes): The ciphertext to decrypt.
+        password (str): The password used for decryption.
+
+    Raises:
+        DecryptionFailure incase it could not manage to decrypt the given bytes.
+
+    Returns:
+        bytes: The decrypted data.
+    """
+    pt_bytes = None
+    try:
+        salt = ciphertext[:16]
+        iv = ciphertext[16:32]
+        ciphertext = ciphertext[32:]
+        key = generate_aes_key(password.encode(), salt, 32)
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        pt_bytes = unpad(cipher.decrypt(ciphertext), AES.block_size)
+    except Exception as e:
+        raise DecryptionFailure(f"Invalid password raised exception: {e}")
+    return pt_bytes
+
+
 def decrypt_header(vault_location : str,  password : str) -> bytes:
     """Attempts to decrypt the header with the given password
 
     Args:
         vault_location (str): Location of the vault
         password (str): The password
+
+    Raises:
+        MagicFailure, DecryptionFailure
 
     Returns:
         dict: The decrypted header as dict
@@ -35,17 +68,5 @@ def decrypt_header(vault_location : str,  password : str) -> bytes:
     if len(error) != 0:
         raise MagicFailure(error)
     header = get_file_from_vault(vault_location, header_start+magic_start_len, header_pad)
-    #TODO: DECRYPT HEADER
-    return header
-
-def decrypt_password_storage(password : bytes) -> str:
-    """Decrypts the vault password for tmp storage
-
-    Args:
-        password (str): Password of the vault
-
-    Returns:
-        str: Decrypted password
-    """
-    #TODO: Decrypt password tmp storage
-    return str(password)
+    res = decrypt_bytes(header, password)
+    return res

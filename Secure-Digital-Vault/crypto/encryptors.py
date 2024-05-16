@@ -1,12 +1,40 @@
-from custom_exceptions.classes_exceptions import FileError
+from custom_exceptions.classes_exceptions import FileError, EncryptionFailure
 from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append
 from utils.extractors import get_icon_from_file
 
 from utils.helpers import get_file_size
 from utils.constants import CHUNK_LIMIT
+from crypto.utils import generate_aes_key
 
 from gui.threads.mutable_boolean import MutableBoolean
 
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad
+
+
+def encrypt_bytes(data : bytes, password : str) -> bytes:
+    """
+    Encrypts bytes using AES encryption in CBC mode.
+
+    Args:
+        data (bytes): The data to encrypt.
+        password (str): The password used for encryption.
+
+    Returns:
+        bytes: The encrypted data.
+    """
+    res = None
+    try:
+        iv = get_random_bytes(16)
+        salt = get_random_bytes(16)
+        key = generate_aes_key(password.encode(), salt, 32)
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        ct_bytes = cipher.encrypt(pad(data, AES.block_size))
+        res = salt + iv + ct_bytes
+    except Exception as e:
+        raise EncryptionFailure(e)
+    return res
 
 def encrypt_header(password : str , header : bytes) -> bytes:
     """Encrypts the header with AES
@@ -15,11 +43,14 @@ def encrypt_header(password : str , header : bytes) -> bytes:
         password (str): Password.
         header (bytes): Serialized header.
 
+    Info:
+        Potential failure in Encryption could be raised, but as the header is always a valid json, this is not ought to happen.
+
     Returns:
         bytes: Encrypted header.
     """
-    # TODO: Encrypt header
-    return header
+    result = encrypt_bytes(header, password)
+    return result
 
 def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault_path : str, continue_running : MutableBoolean,
                                           chunk_size : int = CHUNK_LIMIT) -> list:
@@ -33,7 +64,7 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
         chunk_size (int): Chunk size to read.
 
     Raises:
-        FileError incase it was not able to handle failure
+        FileError, EncryptionFailure incase it was not able to handle failure
 
     Returns:
         list: [0] index is: file_loc_start, [1] index is: file_loc_end, [2] index is: encrypted_file_size,
@@ -63,17 +94,25 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
             if not chunk:
                 break
 
-            # Encrypt and append
-            chunk = encrypt_bytes(password, chunk)
+            # Encrypt
+            try:
+                chunk = encrypt_bytes(chunk, password)
+            except EncryptionFailure as e:
+                continue_running.set_value(False)
+                error_str = stabilize_after_failed_append(vault_path, e.message, vault_size, added_bytes)
+                raise EncryptionFailure(f"Removed added bytes, but failure happened during encryption: {error_str}")
+
             encrypted_file_size += len(chunk)
             if not continue_running.get_value():
                 break
+
+            # Append
             res = append_bytes_into_file(file_path=vault_path, the_bytes=chunk)
 
             if not res[0] or not continue_running.get_value():
                 continue_running.set_value(False)
                 error_str = stabilize_after_failed_append(vault_path, res[1], res[2], added_bytes)
-                raise FileError(error_str)
+                raise FileError(f"Removed added bytes, but failure happened after appending bytes: {error_str}")
 
             added_bytes += len(chunk)
             if file.tell() == file_size:
@@ -108,28 +147,3 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
     ans.append(icon_start)
     ans.append(icon_end)
     return ans
-
-def encrypt_bytes(password : str , byte_chunk : bytes) -> bytes:
-    """Encrypts the given file bytes
-
-    Args:
-        password (str): Password of the vault
-        byte_chunk (bytes): A byte chunk from the file itself
-
-    Returns:
-        bytes: The encrypted file
-    """
-    # TODO: Encrypt byte_chunk
-    return byte_chunk
-
-def encrypt_password_storage(password : str) -> bytes:
-    """Encrypts the vault password for tmp storage
-
-    Args:
-        password (str): Password of the vault
-
-    Returns:
-        bytes: Encrypted password
-    """
-    # TODO: Encrypt password tmp storage
-    return password.encode()

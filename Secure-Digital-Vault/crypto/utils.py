@@ -1,3 +1,4 @@
+from Crypto.Protocol.KDF import PBKDF2
 
 
 def is_password_strong(password : str) -> tuple[bool,list[str]]:
@@ -55,3 +56,17 @@ def get_checksum (file_path : str) -> str:
     """
     # TODO: Add checksum
     return "aCheckSum"
+
+def generate_aes_key(password : str, salt : bytes, key_length : int) -> bytes:
+    """
+    Generate an AES key from a password using PBKDF2.
+
+    Args:
+        password (str): The password to derive the key from.
+        salt (bytes): The salt to use in key derivation.
+        key_length (int): The length of the derived key in bytes.
+
+    Returns:
+        bytes: The derived AES key.
+    """
+    return PBKDF2(password, salt, key_length)

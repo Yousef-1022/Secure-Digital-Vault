@@ -4,6 +4,7 @@ from PyQt6.QtGui import QIcon
 
 from classes.directory import Directory
 from classes.file import File
+from custom_exceptions.classes_exceptions import DecryptionFailure
 
 from file_handle.file_io import create_folder_on_disk, append_bytes_into_file
 from math import floor, ceil
@@ -15,6 +16,8 @@ from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.threads.custom_thread import CustomThread, Worker
 from gui.interactions.interact_dialog import InteractDialog
 from gui import VaultView
+
+from crypto.decryptors import decrypt_bytes
 
 from utils.helpers import get_available_drives, is_location_ok
 from utils.constants import ICON_1
@@ -100,7 +103,7 @@ class GetFileWindow(QMainWindow):
         all_files = []
         for item in self.items:
             if isinstance(item.get_saved_obj(), File):
-                full_path = self.parent().request_path_string(the_id = item.get_saved_obj().get_path(), full_path = False, type = "F")
+                full_path = self.parent().request_path_string(the_id = "/", full_path = False, type = "F")
                 item.get_saved_obj().set_path(full_path)
                 all_files.append(item.get_saved_obj())
             elif isinstance(item.get_saved_obj(), Directory):
@@ -183,7 +186,10 @@ class GetFileWindow(QMainWindow):
                 # Set interactable object data. 0 = KeepRunning (bool), 1 = RequestType (str), 2 = Name (str)
                 interactable_item[0] = True         # Keep running
                 interactable_item[1] = "Password"   # Request
-                interactable_item[2] = file.get_path() + f'{file.get_metadata()["name"]}.{file.get_metadata()["type"]}'
+                if file.get_path() == "/":
+                    interactable_item[2] = f'{file.get_metadata()["name"]}.{file.get_metadata()["type"]}'
+                else:
+                    interactable_item[2] = file.get_path() + f'{file.get_metadata()["name"]}.{file.get_metadata()["type"]}'
                 interaction_signal.emit(interactable_item)
 
                 while interactable_item[0] == True:
@@ -211,17 +217,33 @@ class GetFileWindow(QMainWindow):
             cntr+=1
             full_file_name  = f'{file.get_metadata()["name"]}.{file.get_metadata()["type"]}'
             folder_location = address_location + file.get_path().replace("/","\\")
-            print(f"Creating: {folder_location}{full_file_name}{' but has password '+password if password else ''}. VaultPass: {vault_password}")
             res = create_folder_on_disk(folder_location)
             if not res:
-                self.parent().logger.log(f"Couldn't create location: {folder_location}")
+                self.parent().logger.error(f"Couldn't create location: {folder_location}")
                 continue
 
-            # TODO: 1: Decrypt while get. 2: If password is not None (For if Encrypted)
             file_from_vault = get_file_from_vault(vault_loc, file.get_loc_start(), file.get_loc_end())
-            res = append_bytes_into_file(folder_location, file_from_vault, create_file=True, file_name=full_file_name)
+            res = file_from_vault
+            if res: # File must not be empty when decrypting
+                # If file is encrypted
+                if password:
+                    try:
+                        res = decrypt_bytes(file_from_vault, password)
+                    except DecryptionFailure as e:
+                        self.parent().logger.error(f"Password incorrect for {full_file_name}. Error: {e}")
+                        continue
+                # Regular decryption
+                try:
+                    res = decrypt_bytes(res, vault_password)
+                except DecryptionFailure as e:
+                    self.parent().logger.error(f"Unexpected failure for {full_file_name}. Error: {e}")
+                    continue
+            res = append_bytes_into_file(folder_location, res, create_file=True, file_name=full_file_name)
 
-            # TODO: Handle res result
+            # Extract Note:
+            if file.get_metadata()["note_id"] != -1:
+                self.parent().get_note_from_vault(folder_location, file.get_metadata()["note_id"], False)
+
             if file_amount > 100:
                 if cntr == emit_every:
                     progress_signal.emit(1)
@@ -231,9 +253,9 @@ class GetFileWindow(QMainWindow):
                 if emitted + emit_every < 100:
                     progress_signal.emit(emit_every)
                     emitted+=emit_every
+            self.parent().logger.info(f"Finished extracting {full_file_name}")
 
         progress_signal.emit(100)
-        print("Extraction done")
 
     def interaction_function(self):
         """Function used to communicate with the subthread in order to grab the password

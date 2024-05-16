@@ -36,3 +36,8 @@ class DecryptionFailure(Exception):
         self.message = f"DecryptionFailure: {message}"
         super().__init__(self.message)
 
+class EncryptionFailure(Exception):
+    """Exception when couldn't encryption something"""
+    def __init__(self, message):
+        self.message = f"EncryptionFailure: {message}"
+        super().__init__(self.message)

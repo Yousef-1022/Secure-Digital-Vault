@@ -386,6 +386,7 @@ class VaultViewWindow(QMainWindow):
 
         Args:
             amount_to_shift (int): The amount to shift
+            direction (bool): True if to the right, False if to the left
             data_index_shifter (int): Target files and notes at this index
         """
         if amount_to_shift == 0:
@@ -420,6 +421,17 @@ class VaultViewWindow(QMainWindow):
             if res == '':
                 return '/'
             return f'{res}/'
+
+    def update_item_location(self, the_id : int, new_start_loc : int , new_end_loc : int , type : str):
+        """Updates the location index of a certain item
+
+        Args:
+            the_id (int): The ID of the item to update
+            new_start_loc (int): New Starting
+            new_end_loc (int): New Ending Location
+            type (str): Type of item, V for Note, F for File
+        """
+        self.__vault.update_item_index(the_id, new_start_loc, new_end_loc, type)
 
     def insert_item_into_vault(self , ready_dict : dict, type : str):
         """Inserts the given ready_dict into the vault
@@ -492,7 +504,7 @@ class VaultViewWindow(QMainWindow):
         self.add_to_vault_button.setEnabled(True)
         self.delete_from_vault_button.setEnabled(True)
 
-    def get_note_from_vault(self, file_loc : str, note_id : int):
+    def get_note_from_vault(self, file_loc : str, note_id : int, show_any_message : bool = True):
         """Gets the given note from the vault
 
         Args:
@@ -503,13 +515,15 @@ class VaultViewWindow(QMainWindow):
         if not note_dict[0]: # Note not existing
             msg = f"Couldn't get note due to: {note_dict[1]}"
             self.logger.error(msg)
-            self.show_message("Error", msg, "Error", self)
+            if show_any_message:
+                self.show_message("Error", msg, "Error", self)
             return
         file_dict = self.__vault.get_id_from_vault(note_dict[1]["owned_by_file"], "F")
         if not file_dict[0]:  # Note not belonging to file
             msg = f"Couldn't get note due to: {file_dict[1]}"
             self.logger.error(msg)
-            self.show_message("Error", msg, "Error", self)
+            if show_any_message:
+                self.show_message("Error", msg, "Error", self)
             return
         note_name = f'{file_dict[1]["metadata"]["name"]}_note.{note_dict[1]["type"]}'
         file_bytes = get_file_from_vault(self.__vault.get_vault_path(), note_dict[1]["loc_start"], note_dict[1]["loc_end"], NOTE_LIMIT)
@@ -520,7 +534,8 @@ class VaultViewWindow(QMainWindow):
             msg = f"Couldn't create {msg} note due to: {res[1]}"
             msg_title = "Failure"
             self.logger.error(msg)
-        self.show_message(msg_title, msg, "Information", self)
+        if show_any_message:
+            self.show_message(msg_title, msg, "Information", self)
         return
 
     def get_item_class_from_vault(self, item_id : int, type : str) -> object:

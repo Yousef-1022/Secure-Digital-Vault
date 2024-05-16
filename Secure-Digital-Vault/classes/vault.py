@@ -10,8 +10,7 @@ from classes.directory import Directory
 from classes.note import Note
 from custom_exceptions.classes_exceptions import JsonWithInvalidData, MissingKeyInJson
 
-from crypto.encryptors import encrypt_password_storage, encrypt_header
-from crypto.decryptors import decrypt_password_storage
+from crypto.encryptors import encrypt_header
 
 from file_handle.file_io import override_bytes_in_file, add_magic_into_header, header_padder, find_header_pointers
 
@@ -21,7 +20,7 @@ class Vault:
         self.__header = {}
         self.__map = {}
         self.__vault_path = vault_path
-        self.__password = encrypt_password_storage(password)
+        self.__password = password
 
     # Getters, Setters and Loaders
     def get_header(self) -> dict:
@@ -68,7 +67,7 @@ class Vault:
         Returns:
             str: The password as a string.
         """
-        return decrypt_password_storage(self.__password)
+        return self.__password
 
     def set_password(self, password : str) -> None:
         """Sets the password of the vault with the given string, and then Encrypts it (to storage) of the vault.
@@ -76,7 +75,7 @@ class Vault:
         Args:
             password (str): The password as a string
         """
-        self.__password = encrypt_password_storage(password)
+        self.__password = password
 
     def get_map(self) -> dict:
         """Returns the map of the vault as a dict
@@ -709,3 +708,19 @@ class Vault:
             amount_of_bytes (int): amount of bytes to update with
         """
         self.__header["vault"]["file_size"] += amount_of_bytes
+
+    def update_item_index(self, the_id : int , start_loc : int, end_loc : int , type : str):
+        """Updates the item location index
+
+        Args:
+            the_id (int): The ID of the item
+            start_loc (int): New Start Location
+            end_loc (int): New End Location
+            type (str): The type of item, V for note, F for File
+        """
+        if type == "F":
+            self.__map["files"][str(the_id)]["loc_start"] = start_loc
+            self.__map["files"][str(the_id)]["loc_end"] = end_loc
+        elif type == "V":
+            self.__map["notes"][str(the_id)]["loc_start"] = start_loc
+            self.__map["notes"][str(the_id)]["loc_end"] = end_loc

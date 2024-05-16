@@ -4,7 +4,7 @@ from PyQt6.QtCore import pyqtSignal
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_6, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
 from utils.extractors import get_files_and_folders_paths, get_item_info, get_amount_of_files_or_folders
-from custom_exceptions.classes_exceptions import FileError
+from custom_exceptions.classes_exceptions import FileError, EncryptionFailure
 
 from crypto.encryptors import get_file_and_encrypt_and_add_to_vault
 from crypto.utils import get_checksum
@@ -391,7 +391,7 @@ class AddFileWindow(QMainWindow):
                     # lst will either return: [] , [int,int,int] , [int,int,int,int,int]
                     lst = get_file_and_encrypt_and_add_to_vault(self.parent().request_vault_password(), file[1],
                                                                 self.parent().request_vault_path(), continue_running)
-                except FileError as e:
+                except (FileError, EncryptionFailure) as e:
                     err = f'Couldnt add: {file[1]} because of error: {e}'
                     self.parent().logger.error(err)
                     continue
@@ -420,7 +420,7 @@ class AddFileWindow(QMainWindow):
 
                 self.parent().insert_item_into_vault(res, "F")
                 self.parent().request_file_id_addition_into_folder(id_to_insert_into,res["id"])
-                print(f"INSERTED {file[1]} with {lst}")
+                self.parent().logger.info(f"Inserted {file[1]} into the vault")
                 if cntr < progress_increase:
                     cntr+=to_emit
                     signal.emit(to_emit)
