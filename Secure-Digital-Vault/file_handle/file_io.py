@@ -3,7 +3,7 @@ from custom_exceptions.classes_exceptions import FileError
 
 from crypto.utils import xor_magic
 from utils.helpers import get_file_size, is_location_ok
-from utils.constants import MAGIC_HEADER_START, MAGIC_HEADER_END, MAGIC_HEADER_PAD, CHUNK_LIMIT
+from utils.constants import MAGIC_HEADER_START, MAGIC_HEADER_END, MAGIC_HEADER_PAD, CHUNK_LIMIT, MAGIC_LOG_START, MAGIC_LOG_END
 
 import os
 
@@ -51,9 +51,12 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
         while True:
             chunk = None
             position = 0
+            end_reverse = False
             # Reading
             if read_reverse:
                 position = max(file.tell() - chunk_size, 0)
+                if position == 0:
+                    end_reverse = True
                 file.seek(position)
             chunk = file.read(chunk_size)
             if not chunk:
@@ -67,7 +70,9 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
                 break
             # Edge case of magic being separated between two chunks.
             if read_reverse:
-                if (file.tell() - chunk_size) == 0:
+                if end_reverse:
+                    break
+                if (file.tell() - chunk_size) <= 0:
                     result = -1
                     break
                 file.seek(min(position+len(magic_bytes),file_size))
@@ -147,6 +152,38 @@ def header_padder(file_path : str , amount_to_pad : int) -> None:
     if fd:
         fd.close()
 
+def find_footer_pointers(vault_path : str) -> tuple[int]:
+    """Returns a list related to the indexes of the footer. The vault path must be checked before.
+
+    Args:
+        vault_path (str): Location of the vault
+
+    Returns:
+        tuple[int]: [0] index is the start of the footer after the magic bytes, [1] index is the end of the footer before the magic bytes
+    """
+    magic_start = xor_magic(MAGIC_LOG_START)
+    magic_end   = xor_magic(MAGIC_LOG_END)
+    file = open(vault_path, "rb")
+
+    footer_start = find_magic(vault_path, magic_start, read_reverse=True, fd=file)
+    footer_end   = find_magic(vault_path, magic_end, read_reverse=True, fd=file)
+    file.close()
+    return footer_start, footer_end-len(magic_end)
+
+def add_magic_into_footer(bytes_as_dict: bytes) -> bytes:
+    """Adds the relevant magic bytes into the serialized and encrypted dict
+
+    Args:
+        bytes_as_dict (bytes): Serialized and Encrypted dict
+
+    Returns:
+        bytes: Same bytes but with the magic bytes at the beginning, and at the end of the dict.
+    """
+    return_dict = xor_magic(MAGIC_LOG_START)
+    return_dict += bytes_as_dict
+    return_dict += xor_magic(MAGIC_LOG_END)
+    return bytes(return_dict)
+
 def remove_bytes_from_ending_of_file(file_path : str, num_bytes : int) -> int:
     """Removes the specified amount of bytes from the file incase of failure.
     Location must be checked previously.
@@ -178,10 +215,10 @@ def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bo
         file_name (str) : Option str which is the file name. Used with create_file
 
     Returns:
-        tuple[bool,str,int,int]: First value represents True upon success, False otherwise.
-        Second value is if any error raised.
-        Third value is the file_size before append.
-        Fourth value is the file_size after append.
+        tuple[bool,str,int,int]: [0] represents True upon success, False otherwise.
+        [1] is if any error raised.
+        [2] is the file_size before append.
+        [3] is the file_size after append.
     """
     if create_file:
         result = is_location_ok(file_path, for_file_save=create_file, for_file_update=False)
@@ -343,6 +380,49 @@ def delete_bytes_from_file(file_path : str, init_size : int, bytes_to_delete : i
 
     tmp_fd = delete_bytes_from_file(file_path, init_size, bytes_to_delete, start_index, o_index, chunk_size, file)
     return tmp_fd
+
+def delete_footer_and_hint(file_path : str, footer_start_index : int):
+    """Deletes the footer including the MAGIC and the hint associated with the vault
+
+    Args:
+        file_path (str): The location of the vault
+        footer_start_index (int): The starting index of the footer
+    """
+    the_size = get_file_size(file_path)
+    to_remove = the_size - (footer_start_index - len(MAGIC_LOG_START))
+    remove_bytes_from_ending_of_file(file_path, to_remove)
+
+def add_footer_and_hint(file_path : str, footer_bytes : bytes, the_hint : str):
+    """Adds the encrypted footer into the vault path
+
+    Args:
+        file_path (str): The location of the vault
+        footer_bytes (bytes): The encrypted footer
+        the_hint (str): The hint
+    """
+    footer = add_magic_into_footer(footer_bytes)
+    footer += xor_magic(the_hint)
+    append_bytes_into_file(file_path, footer, create_file=False)
+
+def get_hint(file_path : str) -> str:
+    """Gets the hint associated with Vault
+
+    Args:
+        file_path (str): Location of the vault
+
+    Returns:
+        str: The Hint itself
+    """
+    footer_end = xor_magic(MAGIC_LOG_END)
+    fd = open(file_path, "rb")
+    loc = find_magic(file_path, footer_end, read_reverse=True, chunk_size=int(CHUNK_LIMIT/10), fd=fd)
+    if loc == -1:
+        fd.close()
+        return "No Hint Detected"
+    fd.seek(loc)
+    hint = fd.read(32)
+    fd.close()
+    return xor_magic(hint.decode()).decode()
 
 def create_folder_on_disk(path : str) -> bool:
     """Creates a folder in the given path on the disk

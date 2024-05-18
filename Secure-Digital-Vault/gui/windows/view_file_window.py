@@ -5,9 +5,15 @@ from PyQt6.QtCore import pyqtSignal
 from classes.file import File
 from classes.directory import Directory
 
+from utils.constants import ICON_1
+from utils.parsers import parse_timestamp_to_string
+from utils.extractors import get_file_from_vault
 from file_handle.file_io import override_bytes_in_file
+from crypto.utils import is_password_strong
+from crypto.encryptors import encrypt_bytes
+from crypto.decryptors import decrypt_bytes
 
-from gui.threads.custom_thread import Worker, CustomThread
+from threads.custom_thread import Worker, CustomThread
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
@@ -15,13 +21,6 @@ from gui.interactions.note_dialog import NoteDialog
 from gui.interactions.interact_dialog import InteractDialog
 from gui import VaultView
 
-from utils.constants import ICON_1
-from utils.parsers import parse_timestamp_to_string
-from utils.extractors import get_file_from_vault
-from crypto.utils import is_password_strong
-
-from crypto.encryptors import encrypt_bytes
-from crypto.decryptors import decrypt_bytes
 
 class ViewFileWindow(QMainWindow):
 
@@ -295,12 +294,11 @@ class ViewFileWindow(QMainWindow):
         self.__dialog.reset_inner_items()
         self.__dialog.close()
         self.__dialog.deleteLater()
+        self.exit()
         if self.item_updated:
             self.signal_for_destruction.emit(["Destroy",self.__item.get_saved_obj()])
         else:
             self.signal_for_destruction.emit("Destroy")
-        self.exit()
-        self.close()
         super().closeEvent(event)
 
     def exit(self):
@@ -311,3 +309,4 @@ class ViewFileWindow(QMainWindow):
             t.exit()
         self.threads.clear()
         self.hide()
+        self.close()

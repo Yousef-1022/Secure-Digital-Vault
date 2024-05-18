@@ -1,3 +1,4 @@
+from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 
 
@@ -57,6 +58,23 @@ def get_checksum (file_path : str) -> str:
     # TODO: Add checksum
     return "aCheckSum"
 
+def calc_checksum(data):
+    """Calculate the checksum for some block of data.
+    incase length is not a multiple of four, then assumption is that it is to be padded with null byte.
+    """
+    import struct
+    rmndr = len(data) % 4
+    if rmndr:
+        data += b"\0" * (4 - rmndr)
+    value = 0
+    block_size = 4096
+    assert block_size % 4 == 0
+    for i in range(0, len(data), block_size):
+        block = data[i : i + block_size]
+        lngs = struct.unpack(">%dL" % (len(block) // 4), block)
+        value = (value + sum(lngs)) & 0xFFFFFFFF
+    return value
+
 def generate_aes_key(password : str, salt : bytes, key_length : int) -> bytes:
     """
     Generate an AES key from a password using PBKDF2.
@@ -69,4 +87,22 @@ def generate_aes_key(password : str, salt : bytes, key_length : int) -> bytes:
     Returns:
         bytes: The derived AES key.
     """
-    return PBKDF2(password, salt, key_length)
+    return PBKDF2(password=password, salt=salt, dkLen=key_length)
+
+def calculate_encrypted_chunk_size(given_size: int) -> int:
+    """Calculates the exact encrypted chunk size
+
+    Args:
+        given_size (int): The size of the encrypted chunk
+
+    Summary:
+        Calculates the number of padding bytes to get the total encrypted size.
+        Total encrypted size = given_size + padding size + IV + Salt
+
+    Returns:
+        int: given_size+encryption_overhead
+    """
+    block_size = AES.block_size
+    padding_size = block_size - (given_size % block_size)
+    overhead = padding_size + 16 + 16
+    return given_size + overhead

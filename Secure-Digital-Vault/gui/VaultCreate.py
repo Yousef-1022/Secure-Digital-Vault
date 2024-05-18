@@ -8,14 +8,16 @@ from gui.custom_widgets.custom_line_password import CustomPasswordLineEdit
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
 
-from file_handle.file_io import append_bytes_into_file, add_magic_into_header, header_padder
+from logger.logging import Logger
+from file_handle.file_io import append_bytes_into_file, add_magic_into_header, header_padder, add_magic_into_footer
 
-from utils.constants import VAULT_CREATION_KEYS , ICON_1, VAULT_BUFFER_LIMIT, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
-from utils.serialization import serialize_dict, formulate_header
+from utils.constants import VAULT_CREATION_KEYS , ICON_1, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT, VAULT_BUFFER_LIMIT
+from utils.serialization import serialize_dict, formulate_header, formulate_footer
 from utils.helpers import is_proper_extension, is_location_ok
+from utils.parsers import parse_timestamp_to_string
 
-from crypto.utils import is_password_strong
-from crypto.encryptors import encrypt_header
+from crypto.utils import is_password_strong, xor_magic
+from crypto.encryptors import encrypt_header, encrypt_footer
 
 
 class VaultCreateWindow(QMainWindow):
@@ -172,8 +174,11 @@ class VaultCreateWindow(QMainWindow):
                     v = is_location_ok(line.text(), for_file_save=True, for_file_update=False)
                     if not v[0]:
                         errors+=f"- {v[1]}\n"
-                elif item_text == VAULT_CREATION_KEYS[3] and line.text() == "": # Passowrd Hint
+                elif item_text == VAULT_CREATION_KEYS[3]:
+                    if line.text() == "": # Password Hint
                         errors+=f"- {item_text} must not be empty!"
+                    elif len(line.text()) > 32:
+                        errors+=f"- {item_text} must be less than 32 characters!"
 
         if len(errors) != 0:
             message_box = CustomMessageBox(parent=self)
@@ -207,28 +212,46 @@ class VaultCreateWindow(QMainWindow):
         if self.save_edit_button.text() == "Save":
             QMessageBox.warning(self, "Unsaved Changes", "Please save your changes before creating the vault")
             return
-
-        data = self.__collect_header_data()
-        vault = f"{data['Vault Name']}{data['Vault Extension']}"
         self.progress_bar.setVisible(True)
 
+        # Header
+        data = self.__collect_header_data()
+        vault = f"{data['Vault Name']}{data['Vault Extension']}"
         header = serialize_dict(formulate_header(data["Vault Name"] , data["Vault Extension"]))
         header = encrypt_header(data["Password"], header)
-        self.progress_bar.setValue(30)
         header = add_magic_into_header(header)
-        result = append_bytes_into_file(file_path=data['Vault Location'],the_bytes=header,create_file=True, file_name=vault)
+        self.progress_bar.setValue(30)
+        result = append_bytes_into_file(file_path=data['Vault Location'], the_bytes=header,create_file=True, file_name=vault)
         if not result[0]:
             QMessageBox.warning(self, "Couldn't create vault", f"Reason: {result[1]}")
             self.progress_bar.setVisible(False)
             self.progress_bar.setValue(0)
             return
+        self.progress_bar.setValue(60)
+
+        # Footer + Hint
+        footer = formulate_footer()
+        first_log = Logger.form_log_message(f'Vault {vault} created!\n')
+        footer["session_log"] += first_log
+        footer = serialize_dict(footer)
+        footer = encrypt_footer(data["Password"], footer)
+        footer = add_magic_into_footer(footer) + xor_magic(data['Password Hint'])
+        result = append_bytes_into_file(file_path=f"{data['Vault Location']}/{vault}", the_bytes=footer, create_file=False)
+        if not result[0]:
+            QMessageBox.warning(self, "Couldn't finish creating the vault", f"Reason: {result[1]}")
+            self.progress_bar.setVisible(False)
+            self.progress_bar.setValue(0)
+            return
         self.progress_bar.setValue(90)
+
+        # Padding
         header_padder(file_path=f"{data['Vault Location']}/{vault}", amount_to_pad=VAULT_BUFFER_LIMIT) # buffer size
+        self.progress_bar.setValue(100)
         self.progress_bar.setVisible(False)
         self.progress_bar.setValue(0)
 
     def __collect_header_data(self) -> dict:
-        """Gets the necessary information for the header
+        """Gets the necessary information for the header, and attaches the hint to the end of this dict
 
         Returns:
             dict: Returns the required data to make a header

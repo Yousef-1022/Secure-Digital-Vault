@@ -10,17 +10,19 @@ from classes.directory import Directory
 from classes.note import Note
 from custom_exceptions.classes_exceptions import JsonWithInvalidData, MissingKeyInJson
 
-from crypto.encryptors import encrypt_header
+from crypto.encryptors import encrypt_header, encrypt_footer
 
-from file_handle.file_io import override_bytes_in_file, add_magic_into_header, header_padder, find_header_pointers
+from file_handle.file_io import override_bytes_in_file, add_magic_into_header, header_padder, find_header_pointers, delete_footer_and_hint
 
 
 class Vault:
     def __init__(self, password : str, vault_path : str):
         self.__header = {}
+        self.__footer = {"error_log" : "", "session_log" : ""}
         self.__map = {}
         self.__vault_path = vault_path
         self.__password = password
+        self.__hint = "No Hint"
 
     # Getters, Setters and Loaders
     def get_header(self) -> dict:
@@ -39,6 +41,48 @@ class Vault:
         """
         self.__header = header
         self.__map = self.__header["map"]
+
+    def get_footer(self) -> dict:
+        """Gets the footer as a dict
+
+        Returns:
+            dict: Returns the footer
+        """
+        return self.__footer
+
+
+    def set_footer(self, footer:dict):
+        """Sets the footer
+
+        Args:
+            footer (dict): header to set
+        """
+        self.__footer = footer
+
+    def add_error_log_to_footer(self, msg : str):
+        """Adds an error log the footer
+
+        Args:
+            msg (str): The log message
+        """
+        self.__footer["error_log"] += msg
+
+    def add_normal_log_to_footer(self, msg : str):
+        """Adds a normal log the footer
+
+        Args:
+            msg (str): The log message
+        """
+        self.__footer["session_log"] += msg
+
+    def request_footer_and_hint_delete(self, footer_start : int):
+        """Deletes the footer and its MAGIC along with the hint
+
+        Args:
+            footer_start (int): Location of the footer start after the magic bytes
+        """
+        if footer_start > 0:
+            delete_footer_and_hint(self.__vault_path, footer_start)
 
     def refresh_header(self, return_it : bool = False) -> bytes:
         """Refreshes the header size and has an optional value to return the header.
@@ -62,7 +106,7 @@ class Vault:
         return None
 
     def get_password(self) -> str:
-        """Gets the decrypted password (from storage) of the vault.
+        """Gets the decrypted password of the vault.
 
         Returns:
             str: The password as a string.
@@ -70,12 +114,28 @@ class Vault:
         return self.__password
 
     def set_password(self, password : str) -> None:
-        """Sets the password of the vault with the given string, and then Encrypts it (to storage) of the vault.
+        """Sets the password of the vault with the given string.
 
         Args:
             password (str): The password as a string
         """
         self.__password = password
+
+    def get_hint(self) -> str:
+        """Gets the password hint of the vault.
+
+        Returns:
+            str: The hint as a string.
+        """
+        return self.__hint
+
+    def set_hint(self, hint : str) -> None:
+        """Sets the hint of the vault with the given string.
+
+        Args:
+            password (str): The password as a string
+        """
+        self.__hint = hint
 
     def get_map(self) -> dict:
         """Returns the map of the vault as a dict
@@ -108,6 +168,14 @@ class Vault:
             int: The length of the the unencrypted seralized header of the Vault.
         """
         return self.__header["vault"]["header_size"]
+
+    def get_vault_details(self) -> dict:
+        """Returns the vault details 'vault'
+
+        Returns:
+            dict: The dict of the 'vault'
+        """
+        return self.__header["vault"]
 
     def determine_if_dir_path_is_valid(self, dir_names : list, level : int = 0) -> tuple[bool,int]:
         """Based on the name of a dir, tries to determine whether it is a valid path,
@@ -372,7 +440,6 @@ class Vault:
                 except KeyError:
                     raise MissingKeyInJson(f"Key '{key}' does not exist in the 'map' dict!")
 
-    # TODO: Footer Validators for the log trial
     def validate_footer(self, full_footer:bytes) -> dict:
         """Validates the full footer represented in bytes
 
@@ -394,12 +461,8 @@ class Vault:
         raise JsonWithInvalidData(f"JSON has incorrect magic bytes. Obj len: {len(full_footer)}, Obj: {str(full_footer)}")
 
     def __check_footer_keys(self, footer:dict) -> bool:
-        for key in ["error_log", "session_log"]:
-            if key not in footer:
-                raise MissingKeyInJson(f"Key: {key} is missing from the Vault main Footer.")
-            if "loc_start" not in footer[key]:
-                raise MissingKeyInJson(f"Key: {key} is missing from the Vault Footer.")
-            if "loc_end" not in footer[key]:
+        for key in FOOTER_KEYS:
+            if key not in footer.keys():
                 raise MissingKeyInJson(f"Key: {key} is missing from the Vault Footer.")
         return True
 
@@ -724,3 +787,13 @@ class Vault:
         elif type == "V":
             self.__map["notes"][str(the_id)]["loc_start"] = start_loc
             self.__map["notes"][str(the_id)]["loc_end"] = end_loc
+
+    def generate_footer(self) -> bytes:
+        """Generates a footer which is encrypted with the current password
+
+        Returns:
+            bytes: The footer as encrypted bytes
+        """
+        the_footer = serialize_dict(self.__footer)
+        the_footer = encrypt_footer(self.__password, the_footer)
+        return the_footer

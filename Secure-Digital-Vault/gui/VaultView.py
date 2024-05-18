@@ -1,11 +1,12 @@
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QMessageBox
 from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import pyqtSignal
 
 from utils.constants import ICON_1, NOTE_LIMIT, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
 from utils.parsers import parse_directory_string
 from utils.extractors import get_file_from_vault
 from crypto.utils import get_checksum
-from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append
+from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append, get_hint, add_footer_and_hint
 
 from classes.vault import Vault
 from classes.note import Note
@@ -19,38 +20,58 @@ from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_line import CustomLine
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
+from gui.windows.view_file_window import ViewFileWindow
+from gui.windows.add_file_window import AddFileWindow
+from gui.windows.get_file_window import GetFileWindow
+from gui.windows.delete_file_window import DeleteFileWindow
+from gui.windows.settings_window import SettingsWindow
+from gui.windows.popup_window import PopupWindow
 from gui.interactions.find_file_dialog import FindFileDialog
-from gui.interactions.view_file_window import ViewFileWindow
-from gui.interactions.add_file_window import AddFileWindow
-from gui.interactions.get_file_window import GetFileWindow
-from gui.interactions.delete_file_window import DeleteFileWindow
 
 
 class VaultViewWindow(QMainWindow):
+
+    signal_popup_error = pyqtSignal(str)
+    signal_popup_warn = pyqtSignal(str)
+
     # Settings of the vault, to change password, view vault details, get logs, decrypt vault entirely.
-    def __init__(self, header : bytes, password : str, vault_path : str):
+    def __init__(self, header : bytes, footer : bytes, footer_start : int, password : str, vault_path : str):
         """VaultViewWindow
 
         Args:
-            header (bytes): Extracted Header, Then Decrypted, Then passed as bytes. {Decide if encoding place a role}
+            header (bytes): Extracted Header, Then Decrypted, Then passed as bytes.
+            footer (bytes): Extracted Footer, Then Decrypted, Then passed as bytes.
+            footer_start (int): Location of where the footer starts after the magic bytes.
             password (str): The given password, Non Encryted
+            vault_path (str): The location of the Vault
         """
         super().__init__()
 
         # Window Data
-        self.logger = Logger()
+        self.logger = Logger(self.signal_popup_error, self.signal_popup_warn)
         self.threads = []
+
+        # Vault Header
         self.__vault = Vault(password, vault_path)
         try:
             self.__vault.set_header(self.__vault.validate_header(header))
-        # TODO: Let know the user that there is a problem with the header.
-        except MissingKeyInJson as e:
-            print(e)
-        except JsonWithInvalidData as e:
-            print(e)
-
-        # Windows Data
-        self.__add_file_window = None
+        except (MissingKeyInJson, JsonWithInvalidData) as e:
+            self.hide()
+            msg = self.logger.form_log_message(f"{vault_path} is corrupted. {e.message}", level="Error")
+            self.show_message("Vault Corruption", msg, "Error")
+            self.close()
+            self.deleteLater()
+            self.threads.append(-1)
+            return
+        # Vault Footer, can be corrupted and Recovery is possible
+        try:
+            self.__vault.set_footer(self.__vault.validate_footer(footer))
+            self.__vault.set_hint(get_hint(vault_path))
+            self.__vault.request_footer_and_hint_delete(footer_start)
+        except (MissingKeyInJson, JsonWithInvalidData) as e:
+            self.logger.error(f"The Vault did not contain a footer! All saved logs were deleted. {e.message}")
+        self.logger.warn_signal.connect(self.open_popup_window)
+        self.logger.error_signal.connect(self.open_popup_window)
 
         # Interface
         self.setObjectName("VaultViewWindow")
@@ -61,9 +82,12 @@ class VaultViewWindow(QMainWindow):
         self.resize(1024, 768)
 
         # Window References are kept , they go out of scope and are garbage collected, which will destroy the underlying C++ obj.
+        self.__add_file_window = None
         self.__view_file_window = None
         self.__get_file_window = None
         self.__delete_file_window = None
+        self.__settings_window = None
+        self.__popup_window = None
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
@@ -96,14 +120,12 @@ class VaultViewWindow(QMainWindow):
         self.find_in_vault_button = CustomButton("Find",QIcon(ICON_1), "Find file(s) in the vault",self.centralwidget)
         self.find_in_vault_button.clicked.connect(self.open_find_dialog)
 
-
         # Address bar and Insert Button -> upper_horizontal_layout2
         self.address_bar = CustomLine(text="/", place_holder_text="Path in the vault, e.g, /myFolder/someFolder/", parent=self.centralwidget)
         self.address_bar.returnPressed.connect(lambda : self.on_insert_button_clicked(self.address_bar.text()))
 
         self.address_bar_button = CustomButton("Insert", QIcon(ICON_1), "Confirm the path to navigate", self.centralwidget)
         self.address_bar_button.set_action(lambda : self.on_insert_button_clicked(self.address_bar.text()))
-
 
         # Merging Upper Layouts and adding them into the main layout
         self.upper_horizontal_layout1.addWidget(self.add_to_vault_button)
@@ -117,7 +139,6 @@ class VaultViewWindow(QMainWindow):
         self.upper_horizontal_layout2.addWidget(self.address_bar_button)
         self.vertical_div.addLayout(self.upper_horizontal_layout2)
 
-
         # Tree widget -> vertical_div
         self.tree_widget = CustomTreeWidget(parent=self.centralwidget, vaultview=True, vaultpath=self.__vault.get_vault_path(),
                                            header_map=self.__vault.get_map())
@@ -127,9 +148,62 @@ class VaultViewWindow(QMainWindow):
 
         # Additional information labels can be added here
         self.setCentralWidget(self.centralwidget)
-        # Status bar
+
+        # Status bar includes the CustomButton
         self.setStatusBar(self.statusBar())
+        self.settings_button = CustomButton("Settings", QIcon(ICON_1), "Check the Vault Settings", self)
+        self.settings_button.set_action(self.open_settings_window)
+
+        # Must assign a Widget to the StatusBar, and this Widget must be in a container for better space management
+        container = QWidget()
+        layout = QHBoxLayout()
+        layout.addWidget(self.settings_button)
+        container.setLayout(layout)
+
+        # Add the container widget to the status bar, WinRAR style
+        self.statusBar().addPermanentWidget(container)
+        self.statusBar().setStyleSheet("""
+            QStatusBar {
+                background: #f2f2f2;
+                border-top: 1px solid #c5c5c5;
+                padding: 2px;
+                color: #000000;
+            }
+            QStatusBar::item {
+                border: none;
+            }
+        """)
         self.statusBar().showMessage(f"You're viewing the Vault: {self.__vault.get_vault_path()}")
+
+    def open_popup_window(self, msg : str = None):
+        """Shows a PopupWindow with a message
+
+        Args:
+            msg (str, optional): The Message to show. Defaults to None.
+        """
+        if not self.__popup_window:
+            self.__popup_window = PopupWindow(self)
+            self.__popup_window.signal_for_destruction.connect(self.destory_popup_window)
+        else:
+            self.__popup_window.stop_and_reset_timer()
+        self.__popup_window.set_message(msg)
+        # Geometry to show on top right
+        popup_width = self.__popup_window.sizeHint().width()
+        popup_height = self.__popup_window.sizeHint().height()
+        main_window_pos = self.geometry()
+        x = main_window_pos.x() + main_window_pos.width() - popup_width
+        y = main_window_pos.y() + popup_height
+        self.__popup_window.move(x, y)
+
+        self.__popup_window.show_with_timeout()
+
+    def destory_popup_window(self, variable):
+        """Destroys the popup window and cleans up after it
+        """
+        if self.__popup_window is not None and variable == "Destroy":
+            self.__popup_window.deleteLater()
+            self.__popup_window.destroy(True,True)
+            self.__popup_window = None
 
     # Button insert handle results
     def on_insert_button_clicked(self, path : str, check_location_only : bool = False):
@@ -180,7 +254,7 @@ class VaultViewWindow(QMainWindow):
         self.clearFocus()
 
     def destory_view_file_window(self, variable):
-        """Destorys the view file window and cleans up after it
+        """Destroys the view file window and cleans up after it
         """
         if self.__view_file_window is not None:
             command = variable
@@ -207,11 +281,8 @@ class VaultViewWindow(QMainWindow):
         self.delete_from_vault_button.setDisabled(True)
         self.clearFocus()
 
-    def destroy_add_file_window(self, variable : str):
+    def destroy_add_file_window(self, variable):
         """Destroys the add file window via emitted signal. This signal is of type str
-
-        Args:
-            variable (str): Emitted signal, must be 'Destroy'
         """
         if self.__add_file_window is not None and variable == "Destroy":
             print("Destroying add file window.")
@@ -231,11 +302,8 @@ class VaultViewWindow(QMainWindow):
         self.delete_from_vault_button.setDisabled(True)
         self.clearFocus()
 
-    def destroy_get_file_window(self, variable : str):
+    def destroy_get_file_window(self, variable):
         """Destroys the get file window via emitted signal. This signal is of type str
-
-        Args:
-            variable (str): Emitted signal, must be 'Destroy'
         """
         if self.__get_file_window is not None and variable == "Destroy":
             print("Destroying get file window.")
@@ -255,18 +323,43 @@ class VaultViewWindow(QMainWindow):
             self.__delete_file_window.signal_for_destruction.connect(self.destory_delete_file_window)
             self.__delete_file_window.show()
         self.add_to_vault_button.setDisabled(True)
+        self.extract_from_vault_button.setDisabled(True)
         self.clearFocus()
 
     def destory_delete_file_window(self, variable):
-        """Destorys the delete file window and cleans up after it
+        """Destroys the delete file window and cleans up after it
         """
         if self.__delete_file_window is not None and variable == "Destroy":
-            print("Destroying add file window.")
+            print("Destroying delete file window.")
             self.__delete_file_window.list_widget.clear()
             self.__delete_file_window.deleteLater()
             self.__delete_file_window.destroy(True,True)
             self.__delete_file_window = None
         self.add_to_vault_button.setEnabled(True)
+        self.extract_from_vault_button.setEnabled(True)
+
+    def open_settings_window(self):
+        """On Settings button click, show settings window
+        """
+        if not self.__settings_window:
+            footer = {
+                'errors' : self.logger.get_all_error_logs() + self.__vault.get_footer()["error_log"],
+                'normal' : self.logger.get_all_normal_logs() + self.__vault.get_footer()["session_log"]
+            }
+            self.__settings_window = SettingsWindow(parent=self, vault_header=self.__vault.get_vault_details(),
+                                                    vault_footer=footer)
+            self.__settings_window.signal_for_destruction.connect(self.destory_settings_window)
+            self.__settings_window.show()
+        self.clearFocus()
+
+    def destory_settings_window(self, variable):
+        """Destroys the settings window and cleans up after it
+        """
+        if self.__settings_window is not None and variable == "Destroy":
+            print("Destroying settings window.")
+            self.__settings_window.deleteLater()
+            self.__settings_window.destroy(True,True)
+            self.__settings_window = None
 
     def show_message(self, window_title : str, message : str, type : str = "Warning", parent : QWidget = None):
         """Display a message box with the given details.
@@ -599,8 +692,16 @@ class VaultViewWindow(QMainWindow):
     def closeEvent(self, event):
         """Override for close window for safe shutdown.
         """
-        print(f'({self.logger.get_all_logs()})')
-        #TODO: Maybe More Info for safeShutdown
+        errors = self.logger.get_all_error_logs()
+        for error in errors:
+            self.__vault.add_error_log_to_footer(error)
+        normal = self.logger.get_all_normal_logs()
+        for log in normal.split("\n"):
+            if log != '' and "INFO" not in log:
+                to_add = log+"\n"
+                self.__vault.add_normal_log_to_footer(to_add)
+        add_footer_and_hint(self.__vault.get_vault_path(), self.__vault.generate_footer(), self.__vault.get_hint())
+        self.exit()
         super().closeEvent(event)
 
     def exit(self) -> None:
@@ -609,6 +710,10 @@ class VaultViewWindow(QMainWindow):
         for t in self.threads:
             t.exit()
         self.threads.clear()
+        self.destory_view_file_window("Destroy")
+        self.destroy_add_file_window("Destroy")
+        self.destroy_get_file_window("Destroy")
+        self.destory_delete_file_window("Destroy")
+        self.destory_settings_window("Destroy")
         self.hide()
         self.close()
-        # TODO other data when closing VaultView

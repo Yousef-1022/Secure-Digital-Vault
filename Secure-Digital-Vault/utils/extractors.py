@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QByteArray, QFileInfo, QBuffer, QSize, QDir, QFile, QIODevice, QDataStream
+from PyQt6.QtCore import QByteArray, QFileInfo, QBuffer, QSize, QDir, QFile
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import QFileIconProvider
 from utils.constants import CHUNK_LIMIT, DEFAULT_ICON_SIZE
@@ -29,7 +29,6 @@ def get_file_from_vault(vault_path : str, starting_byte : int , ending_byte : in
         else:
             raw_data = file.read(ending_byte - starting_byte)
     return raw_data
-
 
 def get_icon_from_file(file_loc : str) -> bytes:
     """Gets the icon from the given file and returns its pixelmap as raw bytes.

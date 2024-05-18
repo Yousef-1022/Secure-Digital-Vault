@@ -4,11 +4,14 @@ from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
 from utils.helpers import is_proper_extension
-from logger.logging import Logger
+from crypto.decryptors import decrypt_header, decrypt_footer
+from file_handle.file_io import get_hint
 
-from crypto.decryptors import decrypt_header
 from custom_exceptions.utils_exceptions import MagicFailure
 from custom_exceptions.classes_exceptions import DecryptionFailure
+
+from logger.logging import Logger
+from threads.custom_thread import Worker, CustomThread
 
 from gui import ViewManager
 from gui.custom_widgets.custom_tree_widget import CustomTreeWidget
@@ -18,7 +21,6 @@ from gui.custom_widgets.custom_line import CustomLine
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
 from gui.custom_widgets.custom_line_password import CustomPasswordLineEdit
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
-from gui.threads.custom_thread import Worker, CustomThread
 
 import os
 
@@ -33,6 +35,7 @@ class VaultSearchWindow(QMainWindow):
         # Pointer to ViewManager
         self.__view_manager = VaultViewManager
         # Window Data
+        self.__failed_attempts = 0
         self.threads = []
         self.message_show.connect(self.__show_message)
 
@@ -42,7 +45,6 @@ class VaultSearchWindow(QMainWindow):
         self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
         self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
         self.resize(800, 600)
-        #self.screen
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
@@ -183,7 +185,6 @@ class VaultSearchWindow(QMainWindow):
             return None
         for t in self.threads:
             if(t.handled_function == "detect_vault" and not t.timer_finished):
-                self.logger.info(f"{t} is Already running with {t.handled_function}")
                 return
 
         self.mythread = CustomThread(10 , self.detect_vault.__name__)
@@ -267,9 +268,8 @@ class VaultSearchWindow(QMainWindow):
             message_box.showMessage(f"The extension of the vault: '{vault_extension}' does not correspond to the extension of '{vault_loc}'!")
             return
         else:
-            print(f"Password: {password} - Vault location: {vault_loc} - Extension: {vault_extension}. Redirect to vault view")
-            #TODO: Add the password hint stuff
-
+            if self.__failed_attempts >= 2:
+                self.password_line_edit.get_passwordLine().setPlaceholderText(f"Vault password hint: {get_hint(vault_loc)}")
             # Seperate Thread
             self.mythread = CustomThread(20 , self.decrypt_given_vault.__name__)
             self.threads.append(self.mythread)
@@ -326,15 +326,21 @@ class VaultSearchWindow(QMainWindow):
         self.tree_widget.populate(path)
 
     def decrypt_given_vault(self, vault_loc : str , password : str, message_signal : pyqtSignal):
+        self.password_line_edit.get_passwordLine().setText("")
         try:
             actual_header = decrypt_header(vault_loc,password)
+            actual_footer = decrypt_footer(vault_loc,password)
         except MagicFailure as e:
+            self.__failed_attempts+=1
             message_signal.emit(f'Corrupted Vault#{Logger.form_log_message(e, "ERROR")}#Error')
             return
         except DecryptionFailure as e:
+            self.__failed_attempts+=1
             message_signal.emit(f'Decryption Failure#{Logger.form_log_message(e)}#Error')
             return
         self.__view_manager.set_special_h(actual_header)
+        self.__view_manager.set_special_s(actual_footer[0])
+        self.__view_manager.set_special_f(actual_footer[1])
         self.__view_manager.set_special_p(password)
         self.__view_manager.set_vault_pointer(vault_loc)
         self.__view_manager.signal_to_open_window.emit("VaultView")

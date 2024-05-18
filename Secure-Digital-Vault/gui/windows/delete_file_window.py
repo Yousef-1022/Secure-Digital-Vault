@@ -5,21 +5,20 @@ from PyQt6.QtGui import QIcon
 from classes.directory import Directory
 from classes.file import File
 
+from utils.helpers import is_location_ok
+from utils.constants import ICON_1
 from file_handle.file_io import delete_bytes_from_file, get_file_size
 from math import floor, ceil
 
+from threads.custom_thread import CustomThread, Worker
+from threads.mutable_boolean import MutableBoolean
+from threads.mutable_integer import MutableInteger
+
+from gui import VaultView
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
-from gui.threads.custom_thread import CustomThread, Worker
-from gui.threads.mutable_boolean import MutableBoolean
-from gui.threads.mutable_integer import MutableInteger
-from gui import VaultView
-
-from utils.helpers import is_location_ok
-from utils.constants import ICON_1
-
 
 # Can be used for both files and folders.
 class DeleteFileWindow(QMainWindow):
@@ -327,5 +326,5 @@ class DeleteFileWindow(QMainWindow):
             t.exit()
         self.threads.clear()
         self.hide()
-        self.signal_for_destruction.emit("Destroy")
         self.close()
+        self.signal_for_destruction.emit("Destroy")

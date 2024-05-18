@@ -4,10 +4,16 @@ from PyQt6.QtCore import pyqtSignal
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_6, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
 from utils.extractors import get_files_and_folders_paths, get_item_info, get_amount_of_files_or_folders
-from custom_exceptions.classes_exceptions import FileError, EncryptionFailure
-
 from crypto.encryptors import get_file_and_encrypt_and_add_to_vault
 from crypto.utils import get_checksum
+from math import floor
+
+from custom_exceptions.classes_exceptions import FileError, EncryptionFailure
+from logger.logging import Logger
+
+from threads.custom_thread import Worker, CustomThread
+from threads.mutable_boolean import MutableBoolean
+from threads.mutable_integer import MutableInteger
 
 from gui import VaultView
 from gui.custom_widgets.custom_tree_widget import CustomTreeWidget
@@ -16,11 +22,6 @@ from gui.custom_widgets.custom_dropdown import CustomDropdown
 from gui.custom_widgets.custom_line import CustomLine
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
 from gui.custom_widgets.custom_messagebox import CustomMessageBox
-
-from gui.threads.custom_thread import Worker, CustomThread
-from gui.threads.mutable_boolean import MutableBoolean
-from gui.threads.mutable_integer import MutableInteger
-from math import floor
 
 import os
 
@@ -377,6 +378,7 @@ class AddFileWindow(QMainWindow):
             to_emit = progress_increase
         else:
             to_emit = floor(progress_increase/amount_of_files)
+        logger = Logger()
 
         # Go through files
         for file in selected_items:
@@ -393,12 +395,12 @@ class AddFileWindow(QMainWindow):
                                                                 self.parent().request_vault_path(), continue_running)
                 except (FileError, EncryptionFailure) as e:
                     err = f'Couldnt add: {file[1]} because of error: {e}'
-                    self.parent().logger.error(err)
+                    logger.error(err)
                     continue
 
                 res = get_item_info(file[1])
                 if len(lst) < 3:   # No add and encrypt because continue running is false.
-                    self.parent().logger.warn(f"Couldn't add {file[1]} because operation was cancelled")
+                    logger.warn(f"Couldn't add {file[1]} because operation was cancelled")
                     continue
                 if len(lst) > 3:
                     res["id"] = self.parent().request_new_id("F")
@@ -410,17 +412,17 @@ class AddFileWindow(QMainWindow):
                     res["checksum"] = get_checksum(file[1])
                     res["path"] = id_to_insert_into
                 else:
-                    self.parent().logger.error(f"Couldn't add {file[1]} because list values {lst} are incomplete.")
+                    logger.error(f"Couldn't add {file[1]} because list values {lst} are incomplete.")
                     continue
                 if len(lst) == 4:
-                    self.parent().logger.error(f"Couldn't add {file[1]} icon because {lst[3]}")
+                    logger.error(f"Couldn't add {file[1]} icon because {lst[3]}")
                 elif len(lst) == 5:
                     res["metadata"]["icon_data_start"] = lst[3]
                     res["metadata"]["icon_data_end"] = lst[4]
 
                 self.parent().insert_item_into_vault(res, "F")
                 self.parent().request_file_id_addition_into_folder(id_to_insert_into,res["id"])
-                self.parent().logger.info(f"Inserted {file[1]} into the vault")
+                logger.info(f"Inserted {file[1]} into the vault")
                 if cntr < progress_increase:
                     cntr+=to_emit
                     signal.emit(to_emit)
@@ -446,5 +448,5 @@ class AddFileWindow(QMainWindow):
             t.exit()
         self.threads.clear()
         self.hide()
-        self.signal_for_destruction.emit("Destroy")
         self.close()
+        self.signal_for_destruction.emit("Destroy")

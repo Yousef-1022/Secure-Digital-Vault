@@ -36,6 +36,17 @@ def formulate_header(vault_name : str , extension : str) -> dict:
     final_result["vault"]["header_size"] = tmp
     return final_result
 
+def formulate_footer() -> dict:
+    """Creates a full footer dictionary
+
+    Returns:
+        dict: Representing the full footer
+    """
+    return {
+        "error_log" : "",
+        "session_log" : ""
+    }
+
 def serialize_dict(the_dict : dict) -> bytes:
     """Serializes the given dictionary into bytes
 

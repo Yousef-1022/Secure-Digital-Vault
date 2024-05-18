@@ -9,9 +9,10 @@ MAGIC_LOG_END = "$endlog$"
 
 # All keys representing the structure of the vault
 
+VAULT_CREATION_KEYS = ["Vault Name" , "Vault Extension", "Vault Location", "Password Hint"]
 VAULT_KEYS = ["vault_name", "vault_extension", "header_size", "file_size", "trusted_timestamp", "amount_of_files", "is_vault_encrypted"]
 MAP_KEYS = ["file_ids", "directory_ids" , "note_ids", "directories", "files", "notes"]
-VAULT_CREATION_KEYS = ["Vault Name" , "Vault Extension", "Vault Location", "Password Hint"]
+FOOTER_KEYS = ["error_log", "session_log"]
 
 # Utils
 TREE_COLUMNS = ["Name", "Type", "Size", "Data Created", "Data Modified"]

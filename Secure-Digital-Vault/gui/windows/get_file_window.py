@@ -5,24 +5,25 @@ from PyQt6.QtGui import QIcon
 from classes.directory import Directory
 from classes.file import File
 from custom_exceptions.classes_exceptions import DecryptionFailure
+from logger.logging import Logger
 
+from utils.constants import ICON_1, CHUNK_LIMIT
+from utils.helpers import get_available_drives, is_location_ok
+from utils.parsers import show_as_windows_directory
+from utils.extractors import get_file_from_vault
 from file_handle.file_io import create_folder_on_disk, append_bytes_into_file
+from crypto.decryptors import decrypt_bytes
+from crypto.utils import generate_aes_key
 from math import floor, ceil
 
+from gui import VaultView
+from threads.custom_thread import CustomThread, Worker
 from gui.custom_widgets.custom_line import CustomLine
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_tree_item import CustomQTreeWidgetItem
 from gui.custom_widgets.custom_progressbar import CustomProgressBar
-from gui.threads.custom_thread import CustomThread, Worker
 from gui.interactions.interact_dialog import InteractDialog
-from gui import VaultView
 
-from crypto.decryptors import decrypt_bytes
-
-from utils.helpers import get_available_drives, is_location_ok
-from utils.constants import ICON_1
-from utils.parsers import show_as_windows_directory
-from utils.extractors import get_file_from_vault
 import time
 
 
@@ -177,6 +178,7 @@ class GetFileWindow(QMainWindow):
             emit_every = floor(file_amount / 100)
         else:
             emit_every = ceil(100 / file_amount)
+        logger = Logger()
 
         for file in lst:
             password = None
@@ -196,7 +198,8 @@ class GetFileWindow(QMainWindow):
                     time.sleep(1)   # Wait for response
 
                 if interactable_item[1] == "Skip":
-                    self.parent().logger.info(f"Skipped: {file.get_path()}{file.get_metadata()['name']}.{file.get_metadata()['type']}")
+                    at_path = file.get_path()
+                    logger.info(f"Skipped: {'' if at_path == '/' else at_path}{file.get_metadata()['name']}.{file.get_metadata()['type']}")
                     if file_amount > 100:
                         if cntr == emit_every:
                             progress_signal.emit(1)
@@ -219,24 +222,45 @@ class GetFileWindow(QMainWindow):
             folder_location = address_location + file.get_path().replace("/","\\")
             res = create_folder_on_disk(folder_location)
             if not res:
-                self.parent().logger.error(f"Couldn't create location: {folder_location}")
+                logger.error(f"Couldn't create location: {folder_location}")
                 continue
-
             file_from_vault = get_file_from_vault(vault_loc, file.get_loc_start(), file.get_loc_end())
             res = file_from_vault
-            if res: # File must not be empty when decrypting
+            # File must not be empty when decrypting
+            if res:
                 # If file is encrypted
                 if password:
                     try:
                         res = decrypt_bytes(file_from_vault, password)
                     except DecryptionFailure as e:
-                        self.parent().logger.error(f"Password incorrect for {full_file_name}. Error: {e}")
+                        logger.error(f"Password incorrect for {full_file_name}. Error: {e}")
                         continue
                 # Regular decryption
                 try:
-                    res = decrypt_bytes(res, vault_password)
+                    # Large File Scenario
+                    if len(res) > CHUNK_LIMIT:
+                        salt = res[:16]
+                        iv = res[16:32]
+                        key = generate_aes_key(password=vault_password.encode(), salt=salt, key_length=32)
+                        res = res[32:]
+                        decrypted_bytes = bytearray()
+                        while True:
+                            move_amount = CHUNK_LIMIT + 16 # Account for padding overhead
+                            chunk = res[:move_amount]
+                            if not chunk:
+                                break
+                            decrypted_chunk = decrypt_bytes(ciphertext=chunk, password='', key=key, iv=iv)
+                            decrypted_bytes.extend(decrypted_chunk)
+                            # Move Array
+                            res = res[move_amount:]
+                            if len(res) == 0:
+                                break
+                        res = bytes(decrypted_bytes)
+                    # Small File Scenario
+                    else:
+                        res = decrypt_bytes(res, vault_password)
                 except DecryptionFailure as e:
-                    self.parent().logger.error(f"Unexpected failure for {full_file_name}. Error: {e}")
+                    logger.error(f"Unexpected failure for {full_file_name}. Error: {e}")
                     continue
             res = append_bytes_into_file(folder_location, res, create_file=True, file_name=full_file_name)
 
@@ -253,7 +277,7 @@ class GetFileWindow(QMainWindow):
                 if emitted + emit_every < 100:
                     progress_signal.emit(emit_every)
                     emitted+=emit_every
-            self.parent().logger.info(f"Finished extracting {full_file_name}")
+            logger.info(f"Finished extracting {full_file_name}")
 
         progress_signal.emit(100)
 
@@ -289,5 +313,5 @@ class GetFileWindow(QMainWindow):
             t.exit()
         self.threads.clear()
         self.hide()
-        self.signal_for_destruction.emit("Destroy")
         self.close()
+        self.signal_for_destruction.emit("Destroy")

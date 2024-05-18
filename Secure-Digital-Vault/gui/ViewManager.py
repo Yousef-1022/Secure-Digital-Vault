@@ -10,7 +10,9 @@ from gui.custom_widgets.custom_button import CustomButton
 from utils.constants import ICON_1, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
 
 
-class WindowManager(QMainWindow):
+class ViewManager(QMainWindow):
+    """Used to manage the initial point of the Vault
+    """
 
     signal_to_open_window = pyqtSignal(str)
 
@@ -19,6 +21,8 @@ class WindowManager(QMainWindow):
 
         # Special Data
         self.__data_h = None
+        self.__data_f = None
+        self.__data_s = 0
         self.__data_p = None
         self.__vault_pointer = ""
         self.signal_to_open_window.connect(self.handle_window)
@@ -72,6 +76,12 @@ class WindowManager(QMainWindow):
 
     def set_special_h(self , data : bytes):
         self.__data_h = data
+
+    def set_special_f(self , data : bytes):
+        self.__data_f = data
+
+    def set_special_s(self, data : int):
+        self.__data_s = data
 
     def set_special_p(self , data : bytes):
         self.__data_p = data
@@ -128,7 +138,16 @@ class WindowManager(QMainWindow):
 
     def __show_VaultView(self):
         if not self.__VaultView:
-            self.__VaultView = VaultViewWindow(self.__data_h, self.__data_p, self.__vault_pointer)
+            self.__VaultView = VaultViewWindow(self.__data_h, self.__data_f, self.__data_s, self.__data_p, self.__vault_pointer)
+
+        # Corruption Handle
+        if len(self.__VaultView.threads) != 0 and self.__VaultView.threads[0] == -1:
+            self.hide()
+            self.close_self()
+            from PyQt6.QtWidgets import QApplication
+            QApplication.quit()
+            return
+
         self.setParent(self.__VaultView)
         self.__VaultView.show()
         self.hide()
@@ -138,6 +157,7 @@ class WindowManager(QMainWindow):
         self.__VaultCreateView_exit()
         self.__VaultSearchView_exit()
         self.__data_h = None
+        self.__data_f = None
         self.__data_p = None
         self.__vault_pointer = ""
         for t in self.threads:

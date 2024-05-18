@@ -1,11 +1,11 @@
-from gui.ViewManager import WindowManager
-from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QApplication
+from gui.ViewManager import ViewManager
 
 import sys
 
 sys.argv += ['-platform', 'windows:darkmode=1'] # 1 = light Theme
-app = QtWidgets.QApplication(sys.argv)
+app = QApplication(sys.argv)
 app.setStyle("Fusion")
-MainWindow = WindowManager()
+MainWindow = ViewManager()
 MainWindow.show()
 sys.exit(app.exec())
