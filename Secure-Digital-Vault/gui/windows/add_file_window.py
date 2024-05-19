@@ -407,7 +407,7 @@ class AddFileWindow(QMainWindow):
                     res["size"] = lst[2]
                     res["metadata"]["icon_data_start"] = -1
                     res["metadata"]["icon_data_end"] = -1
-                    res["checksum"] = get_checksum(file[1])
+                    res["checksum"] = get_checksum(file[1], is_file=True)
                     res["path"] = id_to_insert_into
                 else:
                     logger.error(f"Couldn't add {file[1]} because list values {lst} are incomplete.")

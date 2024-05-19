@@ -24,10 +24,11 @@ MINIMUM_WINDOW_WIDTH = 640  # 640x480
 MINIMUM_WINDOW_HEIGHT = 480 # 640x480
 
 # All icons
-ICON_1 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon1.png"
-ICON_2 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon2.png"
-ICON_3 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon3.png"
-ICON_4 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon4.png"
-ICON_5 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon5.png"
-ICON_6 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon6.png"
-ICON_7 = "D:\\Thesis\\Secure-Digital-Vault\\assets\\icon7.png"
+from config import ASSETS_DIR
+ICON_1 = f'{ASSETS_DIR}\\icon1.png'
+ICON_2 = f'{ASSETS_DIR}\\icon2.png'
+ICON_3 = f'{ASSETS_DIR}\\icon3.png'
+ICON_4 = f'{ASSETS_DIR}\\icon4.png'
+ICON_5 = f'{ASSETS_DIR}\\icon5.png'
+ICON_6 = f'{ASSETS_DIR}\\icon6.png'
+ICON_7 = f'{ASSETS_DIR}\\icon7.png'

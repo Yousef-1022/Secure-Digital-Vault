@@ -1,6 +1,7 @@
 from PyQt6.QtCore import QDir, QFile
 from custom_exceptions.classes_exceptions import FileError
 
+from utils.extractors import get_file_from_vault
 from crypto.utils import xor_magic
 from utils.helpers import get_file_size, is_location_ok
 from utils.constants import MAGIC_HEADER_START, MAGIC_HEADER_END, MAGIC_HEADER_PAD, CHUNK_LIMIT, MAGIC_LOG_START, MAGIC_LOG_END
@@ -19,7 +20,7 @@ def find_magic(vault_path: str, magic_bytes: bytes, start_from_index: int = -1, 
         start_from_index (int): optional Index where to start search from
         read_reverse (bool): optional value to read the file from the ending
         chunk_size (int, optional): Chunk size to read which has length bigger than Magic.
-        fd: FileDescriptor. It is given to reduce file opening overhead, and this function does not close it.
+        fd: FileDescriptor. It is given to reduce file opening overhead, and this function does not close it. (rb)
 
     Returns:
         int: Ending Index of the magic bytes. -1 if it does not exist.
@@ -152,7 +153,7 @@ def header_padder(file_path : str , amount_to_pad : int) -> None:
     if fd:
         fd.close()
 
-def find_footer_pointers(vault_path : str) -> tuple[int]:
+def find_footer_pointers(vault_path : str) -> tuple[int,int]:
     """Returns a list related to the indexes of the footer. The vault path must be checked before.
 
     Args:
@@ -184,15 +185,14 @@ def add_magic_into_footer(bytes_as_dict: bytes) -> bytes:
     return_dict += xor_magic(MAGIC_LOG_END)
     return bytes(return_dict)
 
-def remove_bytes_from_ending_of_file(file_path : str, num_bytes : int) -> int:
+def remove_bytes_from_ending_of_file(file_path : str, num_bytes : int, fd = None) -> int:
     """Removes the specified amount of bytes from the file incase of failure.
     Location must be checked previously.
 
     Args:
         file_path (str): Location of the file.
-        num_bytes (int): Number of bytes to remove
-
-    Raises:
+        num_bytes (int): Number of bytes to remov
+        FileDescriptor (fd) optional: FileDescriptor, which is to be closed by the caller if provided (rb+).
 
     Returns:
         int: Amount of remaining bytes in the file
@@ -200,9 +200,16 @@ def remove_bytes_from_ending_of_file(file_path : str, num_bytes : int) -> int:
     size = get_file_size(file_path)
     if size < num_bytes:    # Cannot remove more bytes than what already exists
         return -1
-    with open(file_path, "rb+") as file:
-        file.seek(-num_bytes, 2)
-        ans = file.truncate()
+
+    if fd:
+        file = fd
+    else:
+        file = open(file_path, "rb+")
+
+    file.seek(-num_bytes, 2)
+    ans = file.truncate()
+    if not fd:
+        file.close()
     return ans
 
 def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bool = False, file_name : str = "") -> tuple[bool,str,int,int]:
@@ -250,9 +257,9 @@ def append_bytes_into_file(file_path : str , the_bytes : bytes, create_file : bo
             raise FileError(f"Appending Failure. Old size: {init_size} != New size: {res} after append. Total bytes to add: {amount_of_bytes}, appended: {written_bytes}")
         return (True, "", init_size, new_size)
     except FileError as e:
-        return (False, e, init_size, new_size)
+        return (False, e.message, init_size, new_size)
     except Exception as e:
-        return (False, e, init_size, new_size)
+        return (False, e.__str__(), init_size, new_size)
 
 def stabilize_after_failed_append(file_path : str, append_error : str, old_size : int, already_add_bytes : int = 0):
     """Handle scenario incase append_bytes_into_file function returns False.
@@ -297,10 +304,10 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
         at_location (int, optional): Index location to start addition from. Defaults to 0.
         chunk_size (int): Chunk size to have in memory
         once (bool, optional): Boolean to mark the first iteration. MUST NOT BE USED AS IT IS USED BY RECURSION.
-        fd: FileDescriptor. It is given to reduce file opening overhead. MUST NOT BE USED AS IT IS USED BY RECURSION.
+        fd: FileDescriptor. It is given to reduce file opening overhead. MUST NOT BE USED AS IT IS USED BY RECURSION. (rb+)
 
         Returns:
-            FileDescriptor (fd): FileDescriptor, which is to be closed by the caller.
+            FileDescriptor (fd): FileDescriptor, which is to be closed by the caller. (rb+)
     """
     if len(given_bytes) == 0:
         return fd
@@ -337,49 +344,56 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
                                at_location=save_location, chunk_size=chunk_size, once=False, fd=file)
     return tmp_fd
 
-def delete_bytes_from_file(file_path : str, init_size : int, bytes_to_delete : int, start_index : int,  o_index : int,
-                           chunk_size : int = CHUNK_LIMIT, fd = None):
+def delete_bytes_from_file(file_path : str, bytes_to_delete : int, start_index : int, chunk_size : int = CHUNK_LIMIT, fd = None) -> int:
     """Deletes bytes from the given spot in the file using recursion and inplace overwrite.
 
     Args:
         file_path (str): The location of the file
-        init_size (int): The initial size of the file
         bytes_to_delete (int): Amount of bytes to delete
-
         start_index (int): The location of the index to start the deletion from
-        o_index (int): The location of the upcoming index.
-        To calculate, e.g, start_index=420, bytes_to_delete=70, --> o_index = 490
-
         chunk_size (int, optional): The Size of the chunk to read during every iteration. Defaults to CHUNK_LIMIT.
-        fd: FileDescriptor. It is given to reduce file opening overhead.
+        fd: FileDescriptor. It is given to reduce file opening overhead. Must be closed if given by the caller (rb+)
 
     Returns:
-        FileDescriptor (fd): FileDescriptor, which is to be closed by the caller.
+        int: The remaining amount of bytes in the file after delete
     """
-    if init_size <= 0:
-        if fd:
-            fd.close()
-        return None
-
     if fd:
         file = fd
     else:
         file = open(file_path, "rb+")
 
-    if o_index >= init_size:
-        file.seek(init_size)
-        remove_bytes_from_ending_of_file(file_path, bytes_to_delete)
-        return file
+    init_chunk_start = start_index + bytes_to_delete
+    init_chunk_end = init_chunk_start + bytes_to_delete
+    next_chunk = get_file_from_vault(vault_path=file_path, starting_byte=init_chunk_start, ending_byte=init_chunk_end,
+                                     chunk_size_to_read=chunk_size, fd=file)
+    if len(next_chunk) < bytes_to_delete:
+        file = override_bytes_in_file(file_path=file_path, given_bytes=next_chunk, byte_loss=0,
+                                      at_location=start_index, chunk_size=chunk_size, fd=file)
+        res = remove_bytes_from_ending_of_file(file_path, bytes_to_delete, fd=file)
+        return res
 
-    file.seek(o_index)
-    bytes = file.read(chunk_size)
-    o_index = file.tell()
-    file.seek(start_index)
-    file.write(bytes)
-    start_index = file.tell()
+    # Override what is to delete
+    file = override_bytes_in_file(file_path=file_path, given_bytes=next_chunk, byte_loss=0,
+                                  at_location=start_index, chunk_size=chunk_size, fd=file)
+    # Push
+    override_from = init_chunk_start
+    next_chunk_start = init_chunk_end # Skip initial replacement chunk
+    next_chunk_end = next_chunk_start + chunk_size
+    while True:
+        chunk = get_file_from_vault(vault_path=file_path, starting_byte=next_chunk_start, ending_byte=next_chunk_end,
+                                    chunk_size_to_read=chunk_size, fd=file)
+        if not chunk:
+            break
+        file = override_bytes_in_file(file_path=file_path, given_bytes=chunk, byte_loss=0,
+                                      at_location=override_from, chunk_size=chunk_size, fd=file)
+        override_from = override_from + len(chunk)
+        next_chunk_start = next_chunk_end
+        next_chunk_end = next_chunk_end + chunk_size
 
-    tmp_fd = delete_bytes_from_file(file_path, init_size, bytes_to_delete, start_index, o_index, chunk_size, file)
-    return tmp_fd
+    res = remove_bytes_from_ending_of_file(file_path, bytes_to_delete, fd=file)
+    if not fd:
+        file.close()
+    return res
 
 def delete_footer_and_hint(file_path : str, footer_start_index : int):
     """Deletes the footer including the MAGIC and the hint associated with the vault

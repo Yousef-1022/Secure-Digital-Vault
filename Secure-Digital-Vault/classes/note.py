@@ -67,7 +67,7 @@ class Note:
             "checksum" : self.__checksum
         }
 
-    def validate_mapped_data(self, data : dict) -> bool:
+    def validate_mapped_data(self, data : dict) -> None:
         """Checks whether the passed dict represents a valid Dictionary
 
         Args:

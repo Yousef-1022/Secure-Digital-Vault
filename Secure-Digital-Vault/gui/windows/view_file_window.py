@@ -60,7 +60,6 @@ class ViewFileWindow(QMainWindow):
                 self.__disable_encryption_and_decryption = True
 
         self.remove_note_button = CustomButton("Remove Note", QIcon(ICON_1), "Remove note note from file", self.central_widget)
-        self.remove_note_button.set_action(self.__add_note)
 
         self.add_note_button = CustomButton("Add Note", QIcon(ICON_1), "Add note to file", self.central_widget)
         self.add_note_button.set_action(self.__add_note)

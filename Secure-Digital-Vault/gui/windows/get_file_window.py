@@ -13,7 +13,7 @@ from utils.parsers import show_as_windows_directory
 from utils.extractors import get_file_from_vault
 from file_handle.file_io import create_folder_on_disk, append_bytes_into_file
 from crypto.decryptors import decrypt_bytes
-from crypto.utils import generate_aes_key
+from crypto.utils import generate_aes_key, get_checksum
 from math import floor, ceil
 
 from gui import VaultView
@@ -262,7 +262,11 @@ class GetFileWindow(QMainWindow):
                     except DecryptionFailure as e:
                         logger.warn(f"Password incorrect for {full_file_name}")
                         continue
+
+            output_checksum = get_checksum(res, is_file=False)
             res = append_bytes_into_file(folder_location, res, create_file=True, file_name=full_file_name)
+            if file.get_checksum() != output_checksum:
+                logger.error(f"Saved file checksum {file.get_checksum()} does not correspond to what was taken from the Vault {output_checksum}")
 
             # Extract Note:
             if file.get_metadata()["note_id"] != -1:

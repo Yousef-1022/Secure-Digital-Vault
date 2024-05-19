@@ -16,8 +16,8 @@ from utils.serialization import serialize_dict, formulate_header, formulate_foot
 from utils.helpers import is_proper_extension, is_location_ok
 from utils.parsers import parse_file_name
 
-from crypto.utils import is_password_strong, xor_magic
-from crypto.encryptors import encrypt_header, encrypt_footer
+from crypto.utils import is_password_strong, xor_magic, to_base64
+from crypto.encryptors import encrypt_header, encrypt_footer, generate_password_token
 
 
 class VaultCreateWindow(QMainWindow):
@@ -253,9 +253,33 @@ class VaultCreateWindow(QMainWindow):
 
         # Padding
         header_padder(file_path=f"{data['Vault Location']}/{vault}", amount_to_pad=VAULT_BUFFER_LIMIT) # buffer size
+
+        # Tokens
+        location_for_tokens = data["Vault Location"]
+
+        self.__generate_tokens(data["Password"], location_for_tokens)
+
+        message_box = CustomMessageBox(parent=self)
+        message_box.setIcon(QMessageBox.Icon.Information)
+        message_box.setWindowTitle("Vault Special Tokens")
+        message_box.showMessage(f"Please find the special Vault tokens which can be used as recovery in {location_for_tokens}/tokens.txt")
+        message_box.deleteLater()
         self.progress_bar.setValue(100)
         self.progress_bar.setVisible(False)
         self.progress_bar.setValue(0)
+
+    def __generate_tokens(self, password : str, location_for_tokens : str):
+        """Generates the Vault Recovery tokens
+
+        Args:
+            password (str): The password
+            location_for_tokens (str): The path for the tokens
+        """
+        token1 = to_base64(generate_password_token(password))
+        token2 = to_base64(generate_password_token(password))
+        token3 = to_base64(generate_password_token(password))
+        tokens = f'1: {token1}\n2: {token2}\n3: {token3}\n'.encode()
+        append_bytes_into_file(location_for_tokens, tokens, create_file=True, file_name='tokens.txt')
 
     def __collect_header_data(self) -> dict:
         """Gets the necessary information for the header, and attaches the hint to the end of this dict

@@ -1,5 +1,8 @@
+import struct, hashlib, base64
+
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
+from utils.constants import CHUNK_LIMIT
 
 
 def is_password_strong(password : str) -> tuple[bool,list[str]]:
@@ -46,23 +49,37 @@ def xor_magic (magic : str) -> bytes:
     xored_bytes = bytes([char ^ xor_key[i % len(xor_key)] for i, char in enumerate(magic.encode())])
     return xored_bytes
 
-def get_checksum (file_path : str) -> str:
-    """Gets the checksum of the file
+def get_checksum(data : object, is_file : bool, divide_by : int = 4) -> str:
+    """
+    Calculate the SHA-256 checksum of either a block of data or a file.
 
     Args:
-        file_path (str): Original file location
+        data (bytes): The data to calculate the checksum for, either a filepath or block of data
+        is_file (bool): If its a file path
+        divide_by (int) optional: 4 by default, return the checksum divided by this num. It cannot be larger than 32
 
     Returns:
-        str: The check sum
+        str: The hexadecimal representation of the SHA-256 checksum, length is dependent on divide_by argument
     """
-    # TODO: Add checksum
-    return "aCheckSum"
+    sha256 = hashlib.sha256()
+    if divide_by > 32:
+        divide_by = 4
 
-def calc_checksum(data):
+    if not is_file:
+        sha256.update(data)
+        checksum = sha256.hexdigest()
+        return checksum[:int(len(checksum)/divide_by)]
+
+    with open(data, 'rb') as f:
+        for chunk in iter(lambda: f.read(CHUNK_LIMIT), b''):
+            sha256.update(chunk)
+    checksum = sha256.hexdigest()
+    return checksum[:int(len(checksum)/divide_by)]
+
+def calc_easy_checksum(data):
     """Calculate the checksum for some block of data.
     incase length is not a multiple of four, then assumption is that it is to be padded with null byte.
     """
-    import struct
     rmndr = len(data) % 4
     if rmndr:
         data += b"\0" * (4 - rmndr)
@@ -106,3 +123,31 @@ def calculate_encrypted_chunk_size(given_size: int) -> int:
     padding_size = block_size - (given_size % block_size)
     overhead = padding_size + 16 + 16
     return given_size + overhead
+
+def to_base64(some_bytes: bytes) -> str:
+    """
+    Convert bytes to Base64 encoded string.
+
+    Args:
+        some_bytes (bytes): The bytes to encode.
+
+    Returns:
+        str: The Base64 encoded string.
+    """
+    base64_str = base64.b64encode(some_bytes)
+    base64_str = base64_str.decode('utf-8')
+    return base64_str
+
+def from_base64(base64_str: str) -> bytes:
+    """
+    Convert Base64 encoded string back to bytes.
+
+    Args:
+        base64_str (str): The Base64 encoded string.
+
+    Returns:
+        bytes: The decoded bytes.
+    """
+    base64_bytes = base64_str.encode('utf-8')
+    original_bytes = base64.b64decode(base64_bytes)
+    return original_bytes

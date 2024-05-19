@@ -1,10 +1,11 @@
-from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, QWidget
+from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QCheckBox
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QIcon
 
 from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
 from utils.helpers import is_proper_extension
-from crypto.decryptors import decrypt_header, decrypt_footer
+from crypto.decryptors import decrypt_header, decrypt_footer, resolve_token
+from crypto.utils import from_base64
 from file_handle.file_io import get_hint
 
 from custom_exceptions.utils_exceptions import MagicFailure
@@ -103,16 +104,18 @@ class VaultSearchWindow(QMainWindow):
         self.vertical_div.addWidget(self.tree_widget)
 
         # Bottom Part of the vault
-        self.bottom_vertical_layout1 = QVBoxLayout()       # (Password , Reset Button) , (Vault Location , Import Button)
-        self.bottom_horziontal_sub_layout1 = QHBoxLayout() # (Password , Reset Button)
+        self.bottom_vertical_layout1 = QVBoxLayout()       # (Password , Reset Button, Token) , (Vault Location , Import Button)
+        self.bottom_horziontal_sub_layout1 = QHBoxLayout() # (Password , Reset Button, Token)
         self.bottom_horziontal_sub_layout2 = QHBoxLayout() # (Vault Location , Import Button)
         self.bottom_horziontal_sub_layout3 = QHBoxLayout() # (Return Button , Decrypt Bar)
 
         # Password line edit , Reset Button
         self.password_line_edit = CustomPasswordLineEdit(placeholder_text="Vault password", icon=QIcon(ICON_7) , parent=self.centralwidget)
         self.reset_fields_button = CustomButton("Reset", QIcon(ICON_3), "Reset all fields", self.centralwidget)
+        self.token_checkbox = QCheckBox("Token", parent=self.centralwidget)
         self.reset_fields_button.clicked.connect(self.on_reset_button_clicked)
         self.bottom_horziontal_sub_layout1.addWidget(self.reset_fields_button)
+        self.bottom_horziontal_sub_layout1.addWidget(self.token_checkbox)
         self.bottom_horziontal_sub_layout1.addWidget(self.password_line_edit)
 
         # Vault Location line edit , Import Button
@@ -271,10 +274,11 @@ class VaultSearchWindow(QMainWindow):
             if self.__failed_attempts >= 2:
                 self.password_line_edit.get_passwordLine().setPlaceholderText(f"Vault password hint: {get_hint(vault_loc)}")
             # Seperate Thread
+            is_token = self.token_checkbox.isChecked()
             self.mythread = CustomThread(20 , self.decrypt_given_vault.__name__)
             self.threads.append(self.mythread)
 
-            self.worker = Worker(self.decrypt_given_vault, vault_loc, password, self.message_show)
+            self.worker = Worker(self.decrypt_given_vault, vault_loc, password, is_token, self.message_show)
             self.worker.moveToThread(self.mythread)
             self.mythread.started.connect(self.worker.run)
 
@@ -325,11 +329,14 @@ class VaultSearchWindow(QMainWindow):
         self.tree_widget.clear()
         self.tree_widget.populate(path)
 
-    def decrypt_given_vault(self, vault_loc : str , password : str, message_signal : pyqtSignal):
+    def decrypt_given_vault(self, vault_loc : str , password : str, is_token : bool, message_signal : pyqtSignal):
         self.password_line_edit.get_passwordLine().setText("")
+        the_password = password
         try:
-            actual_header = decrypt_header(vault_loc,password)
-            actual_footer = decrypt_footer(vault_loc,password)
+            if is_token:
+                the_password = resolve_token(from_base64(the_password))
+            actual_header = decrypt_header(vault_loc,the_password)
+            actual_footer = decrypt_footer(vault_loc,the_password)
         except MagicFailure as e:
             self.__failed_attempts+=1
             message_signal.emit(f'Corrupted Vault#{Logger.form_log_message(e, "ERROR")}#Error')
@@ -341,7 +348,7 @@ class VaultSearchWindow(QMainWindow):
         self.__view_manager.set_special_h(actual_header)
         self.__view_manager.set_special_s(actual_footer[0])
         self.__view_manager.set_special_f(actual_footer[1])
-        self.__view_manager.set_special_p(password)
+        self.__view_manager.set_special_p(the_password)
         self.__view_manager.set_vault_pointer(vault_loc)
         self.__view_manager.signal_to_open_window.emit("VaultView")
         return

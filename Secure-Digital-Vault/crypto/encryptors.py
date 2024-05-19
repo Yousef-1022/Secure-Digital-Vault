@@ -4,7 +4,7 @@ from utils.extractors import get_icon_from_file
 
 from utils.constants import CHUNK_LIMIT
 from utils.helpers import get_file_size
-from crypto.utils import generate_aes_key
+from crypto.utils import generate_aes_key, xor_magic
 
 from threads.mutable_boolean import MutableBoolean
 
@@ -190,3 +190,17 @@ def get_file_and_encrypt_and_add_to_vault(password : str, file_path : str, vault
     ans.append(icon_start)
     ans.append(icon_end)
     return ans
+
+def generate_password_token(password : str) -> bytes:
+    """Generates a password token which can be used to decrypt the Vault
+
+    Args:
+        password (str): The password
+
+    Returns:
+        bytes: The Token
+    """
+    tokenizer = [83, 101, 99, 117, 114, 101, 45, 68, 105, 103, 105, 116, 97, 108, 45, 86, 97, 117, 108, 116]
+    cipher = xor_magic(''.join([xor_magic(chr(n)).decode() for n in tokenizer])).decode()
+    token = encrypt_bytes(password.encode(), cipher)
+    return token

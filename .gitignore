@@ -5,6 +5,7 @@ __pycache__/
 
 # Environment-related
 venv/
+.vscode/
 
 # Custom Scripts
 *.ps1

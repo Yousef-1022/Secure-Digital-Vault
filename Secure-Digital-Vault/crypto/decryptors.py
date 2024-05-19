@@ -6,7 +6,7 @@ from utils.constants import MAGIC_HEADER_START
 
 from file_handle.file_io import find_header_pointers, find_footer_pointers
 
-from crypto.utils import generate_aes_key
+from crypto.utils import generate_aes_key, xor_magic
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 
@@ -99,3 +99,17 @@ def decrypt_footer(vault_location : str,  password : str) -> list:
     footer = get_file_from_vault(vault_location, footer_start, footer_end)
     res = decrypt_bytes(footer, password)
     return [footer_start, res]
+
+def resolve_token(token : bytes) -> str:
+    """Resolves the token which was used to encrypt the Vault
+
+    Args:
+        token (bytes): The token
+
+    Returns:
+        str: The Token
+    """
+    tokenizer = [83, 101, 99, 117, 114, 101, 45, 68, 105, 103, 105, 116, 97, 108, 45, 86, 97, 117, 108, 116]
+    cipher = xor_magic(''.join([xor_magic(chr(n)).decode() for n in tokenizer])).decode()
+    token = decrypt_bytes(token, cipher)
+    return token.decode()

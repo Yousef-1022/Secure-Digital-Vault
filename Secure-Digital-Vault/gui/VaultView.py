@@ -581,7 +581,7 @@ class VaultViewWindow(QMainWindow):
             "loc_start" : res[2],
             "loc_end" : res[3],
             "type" : extension,
-            "checksum" : get_checksum(file_loc)
+            "checksum" : get_checksum(file_loc, is_file=True)
         }
         the_note = Note(note_info)
         self.insert_item_into_vault(the_note.get_as_dict(), "V")
@@ -604,6 +604,7 @@ class VaultViewWindow(QMainWindow):
                 self.show_message("Error", msg, "Error", self)
             return
         file_dict = self.__vault.get_id_from_vault(note_dict[1]["owned_by_file"], "F")
+        note_dict = self.__vault.get_id_from_vault(note_dict[1]["id"], "V")
         if not file_dict[0]:  # Note not belonging to file
             msg = f"Couldn't get note due to: {file_dict[1]}"
             self.logger.error(msg)
@@ -621,6 +622,9 @@ class VaultViewWindow(QMainWindow):
             self.logger.error(msg)
         if show_any_message:
             self.show_message(msg_title, msg, "Information", self)
+        note_checksum = get_checksum(file_bytes, is_file=False)
+        if note_dict[1]['checksum'] != note_checksum:
+            self.logger.error(f"Saved note checksum {note_dict['checksum']} does not correspond to what was taken from the Vault {note_checksum}")
         return
 
     def get_item_class_from_vault(self, item_id : int, type : str) -> object:

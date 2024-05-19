@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QFileIconProvider
 from utils.constants import CHUNK_LIMIT, DEFAULT_ICON_SIZE
 
 
-def get_file_from_vault(vault_path : str, starting_byte : int , ending_byte : int, chunk_size_to_read : int = CHUNK_LIMIT):
+def get_file_from_vault(vault_path : str, starting_byte : int , ending_byte : int, chunk_size_to_read : int = CHUNK_LIMIT, fd = None):
     """Gets raw bytes from vault location on machine
 
     Args:
@@ -12,22 +12,30 @@ def get_file_from_vault(vault_path : str, starting_byte : int , ending_byte : in
         starting_byte (int): file start byte
         ending_byte (int): file end byte
         chunk_size_to_read(int): optional int parameter to determine the amount of chunks to read per file
+        FileDescriptor (fd) optional: FileDescriptor, which is to be closed by the caller if provided.
     """
-    with open(vault_path, "rb") as file:
-        file_size = ending_byte - starting_byte
-        raw_data = b''
-        file.seek(starting_byte)
-        if file_size > chunk_size_to_read:
-            bytes_read = 0
-            while bytes_read < file_size:
-                chunk_size = min(chunk_size_to_read, file_size - bytes_read)
-                chunk = file.read(chunk_size)
-                if not chunk:
-                    break
-                raw_data += chunk
-                bytes_read += len(chunk)
-        else:
-            raw_data = file.read(ending_byte - starting_byte)
+    if fd:
+        file = fd
+    else:
+        file = open(vault_path, "rb")
+
+    file_size = ending_byte - starting_byte
+    raw_data = b''
+    file.seek(starting_byte)
+    if file_size > chunk_size_to_read:
+        bytes_read = 0
+        while bytes_read < file_size:
+            chunk_size = min(chunk_size_to_read, file_size - bytes_read)
+            chunk = file.read(chunk_size)
+            if not chunk:
+                break
+            raw_data += chunk
+            bytes_read += len(chunk)
+    else:
+        raw_data = file.read(ending_byte - starting_byte)
+
+    if not fd:
+        file.close()
     return raw_data
 
 def get_icon_from_file(file_loc : str) -> bytes:
