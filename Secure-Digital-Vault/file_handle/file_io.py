@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QDir
+from PyQt6.QtCore import QDir, QFile
 from custom_exceptions.classes_exceptions import FileError
 
 from crypto.utils import xor_magic
@@ -435,3 +435,29 @@ def create_folder_on_disk(path : str) -> bool:
     """
     dir = QDir(path)
     return dir.mkpath(path)
+
+def rename_file(file_path : str, new_name : str) -> tuple[bool,str]:
+    """Checks whether its possible to rename the file and the renames it
+
+    Args:
+        file_path (str): The location of the file to check if it can be renamed. This location must be valid in Windows Style.
+        new_name (str): The new name.
+
+    Returns:
+        tuple[bool,str]: [0] True if possible, False otherwise. [1] reason for False or full new path if True
+    """
+    if not QFile.exists(file_path):
+        return False, f"'{file_path}' does not exist!"
+    idx = file_path.rfind("\\")
+    old_name = file_path[idx+1:]
+    if old_name == new_name:
+        return False, f"Old name cannot be the same as the new name!"
+    location = file_path[:idx+1] + new_name
+    if QFile.exists(location):
+        return False, f"Cannot rename to '{location}' because it exists!"
+    f = QFile(file_path)
+    res = f.rename(new_name)
+    if not res:
+        return res, f"Failure to rename to '{new_name}'"
+    else:
+        return res, location

@@ -336,7 +336,7 @@ class VaultSearchWindow(QMainWindow):
             return
         except DecryptionFailure as e:
             self.__failed_attempts+=1
-            message_signal.emit(f'Decryption Failure#{Logger.form_log_message(e)}#Error')
+            message_signal.emit(f'Decryption Failure#{Logger.form_log_message('Invalid Password')}#Error')
             return
         self.__view_manager.set_special_h(actual_header)
         self.__view_manager.set_special_s(actual_footer[0])

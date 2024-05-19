@@ -13,10 +13,8 @@ class Worker(QObject):
         self.kwargs = kwargs
 
     def run(self):
-        print("Worker began")
         result = self.function(*self.args, **self.kwargs)
         self.finished.emit(result)
-        print("Worker ended")
 
 
 class CustomThread(QThread):
@@ -71,7 +69,6 @@ class CustomThread(QThread):
         Args:
             emit_finish (bool, optional): if the "finished" signal should be emitted.
         """
-        print(f"handle_timeout called (ungraceful). timer_finished: {self.timer_finished}")
         if not self.timer_finished:
             self.__clean_up_timers()
             self.timeout_signal.emit("Not Found")
@@ -88,7 +85,6 @@ class CustomThread(QThread):
             emitted_result (object, optional): Defaults to None.
             emit_finish (bool, optional): if the "finished" signal should be emitted.
         """
-        print(f"stop_timer called (graceful). timer_finished: {self.timer_finished}")
         if not self.timer_finished:
             self.__clean_up_timers()
             if emitted_result is None:

@@ -161,6 +161,14 @@ class Vault:
         """
         return self.__vault_path
 
+    def set_vault_path(self, new_path : str):
+        """Sets the vault path to the new location on the Disk
+
+        Args:
+            new_path (str): The absolute path on the disk
+        """
+        self.__vault_path = new_path
+
     def get_vault_size(self) -> int:
         """Returns the UNENCRYPTED header_size of the Vault
 
@@ -489,7 +497,6 @@ class Vault:
         elif (header_on_disk_size+available_padding) <= (encrypted_header_len+32): # 32 extra bytes to account for magic
             to_pad = abs((encrypted_header_len+32) - (header_on_disk_size+available_padding)) + VAULT_BUFFER_LIMIT
             self.data_index_shifter(shift_by=to_pad, shift_direction=True, at_index=-1)
-            print(f"Calling header_padder for: {to_pad}. encryped_header_len: {encrypted_header_len}. available_padding: {available_padding} , header_on_disk: {header_on_disk_size}")
             header_padder(file_path=self.__vault_path, amount_to_pad=to_pad)
             # Need to account for extra digit length by data_index_shifter, thus must to re-encrypt header:
             header = self.refresh_header(return_it=True)

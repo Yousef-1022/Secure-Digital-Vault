@@ -4,9 +4,10 @@ from PyQt6.QtCore import pyqtSignal
 
 from classes.file import File
 from classes.directory import Directory
+from logger.logging import Logger
 
-from utils.constants import ICON_1
-from utils.parsers import parse_timestamp_to_string
+from utils.constants import ICON_1, CHUNK_LIMIT
+from utils.parsers import parse_timestamp_to_string, parse_size_to_string
 from utils.extractors import get_file_from_vault
 from file_handle.file_io import override_bytes_in_file
 from crypto.utils import is_password_strong
@@ -37,6 +38,7 @@ class ViewFileWindow(QMainWindow):
         self.__encrypted = False
         self.__dialog = InteractDialog(self)
         self.item_updated = False
+        self.__disable_encryption_and_decryption = False
 
         # Central widget and self.vertical_layout
         self.central_widget = QWidget(self)
@@ -49,7 +51,16 @@ class ViewFileWindow(QMainWindow):
         self.decrypt_button = CustomButton("Decrypt", QIcon(ICON_1), "Decrypt file", self.central_widget)
         self.decrypt_button.set_action(self.__encrypt_or_decrypt_file, False)
 
+        # Check for FileSize
+        if isinstance(item.get_saved_obj(), File):
+            size = item.get_saved_obj().get_loc_end() - item.get_saved_obj().get_loc_start()
+            if size > CHUNK_LIMIT:
+                self.encrypt_button.context_box_text = f"This File cannot be encrypted because its over {parse_size_to_string(CHUNK_LIMIT)}"
+                self.decrypt_button.context_box_text = f"This File cannot be decrypted because its over {parse_size_to_string(CHUNK_LIMIT)}"
+                self.__disable_encryption_and_decryption = True
+
         self.remove_note_button = CustomButton("Remove Note", QIcon(ICON_1), "Remove note note from file", self.central_widget)
+        self.remove_note_button.set_action(self.__add_note)
 
         self.add_note_button = CustomButton("Add Note", QIcon(ICON_1), "Add note to file", self.central_widget)
         self.add_note_button.set_action(self.__add_note)
@@ -84,12 +95,30 @@ class ViewFileWindow(QMainWindow):
         """Updates the buttons according to the data of the item
         """
         if isinstance(self.__item.get_saved_obj(), File):
-            if self.__item.get_saved_obj().get_file_encrypted():
-                self.encrypt_button.setDisabled(True)
-                self.decrypt_button.setEnabled(True)
+            if not self.__disable_encryption_and_decryption:
+                if self.__item.get_saved_obj().get_file_encrypted():
+                    self.encrypt_button.setDisabled(True)
+                    self.decrypt_button.setEnabled(True)
+                else:
+                    self.encrypt_button.setEnabled(True)
+                    self.decrypt_button.setDisabled(True)
             else:
                 self.encrypt_button.setEnabled(True)
-                self.decrypt_button.setDisabled(True)
+                self.encrypt_button.action_function = None
+                self.encrypt_button.clicked.disconnect()
+                def __on_disable_encrypt():
+                    self.encrypt_button.default_action()
+                    self.parent().open_popup_window(Logger.form_log_message("File too big to encrypt!", level="INFO"))
+                self.encrypt_button.clicked.connect(__on_disable_encrypt)
+
+                self.decrypt_button.setEnabled(True)
+                self.decrypt_button.action_function = None
+                self.decrypt_button.clicked.disconnect()
+                def __on_disable_decrypt():
+                    self.decrypt_button.default_action()
+                    self.parent().open_popup_window(Logger.form_log_message("File too big to decrypt!", level="INFO"))
+                self.decrypt_button.clicked.connect(__on_disable_decrypt)
+
             if self.__item.get_saved_obj().get_metadata()["note_id"] != -1:
                 self.remove_note_button.setEnabled(True)
                 self.add_note_button.setDisabled(True)
@@ -98,6 +127,7 @@ class ViewFileWindow(QMainWindow):
                 self.remove_note_button.setDisabled(True)
                 self.add_note_button.setEnabled(True)
                 self.get_note_button.setDisabled(True)
+
         elif isinstance(self.__item.get_saved_obj(), Directory):
             self.encrypt_button.setDisabled(True)
             self.decrypt_button.setDisabled(True)
@@ -144,19 +174,18 @@ class ViewFileWindow(QMainWindow):
                 self.parent().show_message("Weak Password", msg, "Information", self)
                 self.__dialog.reset_inner_items()
                 return
-            self.__encrypted = True
             self.encrypt_button.setDisabled(True)
             self.decrypt_button.setEnabled(True)
         else:
-            self.__encrypted = False
             self.encrypt_button.setEnabled(True)
             self.decrypt_button.setDisabled(True)
 
+        name = f'{self.__item.get_saved_obj().get_metadata()["name"]}.{self.__item.get_saved_obj().get_metadata()["type"]}'
         self.mythread = CustomThread(240 , self.__encrypt_or_decrypt_file.__name__)
         self.threads.append(self.mythread)
-
         self.worker = Worker(self.__process_file, self.parent().request_vault_path(), self.__item.get_saved_obj().get_loc_start(),
-                             self.__item.get_saved_obj().get_loc_end(), self.__dialog.get_data(), self.__encrypted)
+                             self.__item.get_saved_obj().get_loc_end(), self.__dialog.get_data(),
+                             self.parent().request_vault_password(), name, encrypt)
         self.worker.args += (self.worker.progress, )    # Force add signal
 
         self.worker.progress.connect(self.update_progress_bar)
@@ -171,20 +200,23 @@ class ViewFileWindow(QMainWindow):
         def __end_thread_activity(emitted_result):
             if isinstance (emitted_result, list):
                 if emitted_result[0]:
+                    if encrypt:
+                        self.__encrypted = True
+                    else:
+                        self.__encrypted = False
                     old_end_loc = self.__item.get_saved_obj().get_loc_end()
                     direction = True
                     at_index = self.__item.get_saved_obj().get_loc_start() +1 # To account for ICONs
                     self.__item.get_saved_obj().set_file_encrypted(self.__encrypted)
                     self.__item.get_saved_obj().set_loc_end(emitted_result[2])
+                    self.__item.get_saved_obj().get_metadata()["last_modified"] = Logger.get_current_time()
                     self.item_updated = True
 
                     self.parent().update_item_location(self.__item.get_saved_obj().get_id(), self.__item.get_saved_obj().get_loc_start(),
                                                        self.__item.get_saved_obj().get_loc_end(), "F")
                     if old_end_loc < self.__item.get_saved_obj().get_loc_end():
                         self.parent().request_data_shift(self.__item.get_saved_obj().get_loc_end() - old_end_loc, direction, at_index)
-                    self.parent().update_file_data_in_vault(self.__item.get_saved_obj())
-                else:
-                    self.__encrypted = not self.__encrypted
+                    self.parent().update_file_data_in_vault(self.__item.get_saved_obj(), True)
 
                 self.__dialog.reset_inner_items()
                 self.__fullfill_list()
@@ -200,7 +232,8 @@ class ViewFileWindow(QMainWindow):
         self.mythread.start()
 
 
-    def __process_file(self, vault_path : str, file_start_loc : int, file_end_loc : int, password : str, encrypt: bool, progress_signal : pyqtSignal) -> list:
+    def __process_file(self, vault_path : str, file_start_loc : int, file_end_loc : int, password : str, vault_password : str,
+                       file_name : str, encrypt: bool, progress_signal : pyqtSignal) -> list:
         """Process the encryption or decryption of the file
 
         Args:
@@ -208,6 +241,8 @@ class ViewFileWindow(QMainWindow):
             file_start_loc (int): The starting index of the file in the vault
             file_end_loc (int): The ending index of the file in the vault
             password (str): The password to encrypt or decrypt with
+            vault_password (str): The password of the vault
+            file_name (str): The name of the file
             encrypt (bool): To define whether to encrypt or decrypt
             progress_signal (pyqtSignal): signal to update the progress bar
 
@@ -216,22 +251,37 @@ class ViewFileWindow(QMainWindow):
             third is new ending loc index, fourth is old ending loc index
         """
         the_file = get_file_from_vault(vault_path, file_start_loc, file_end_loc)
+        vault_decrypted = None
+        custom_file = None
+        logger = Logger()
+        try:
+            vault_decrypted = decrypt_bytes(the_file, vault_password)
+        except Exception as e:
+            logger.error(f"Vault Failure! Original password failed, retry interaction with {file_name} again after reopening the Vault")
+            return [False, e.message, file_end_loc, file_end_loc]
 
         progress_signal.emit(33)
+        # Decrypt from Vault, Custom Encrypt Password, Then Vault Password
         if encrypt:
             try:
-                the_file = encrypt_bytes(the_file, password)
+                custom_file = encrypt_bytes(vault_decrypted, password)
             except Exception as e:
-                self.parent().show_message("Encryption Failure", e.message, "Error", self)
+                logger.error(f"Encryption Failure! '{e.message}'")
                 return [False, e.message, file_end_loc, file_end_loc]
         else:
             try:
-                the_file = decrypt_bytes(the_file, password)
+                custom_file = decrypt_bytes(vault_decrypted, password)
             except Exception as e:
-                self.parent().show_message("Decryption Failure", e.message, "Error", self)
+                logger.warn(f"Couldn't decrypt '{file_name}! Incorrect Password")
                 return [False, e.message, file_end_loc, file_end_loc]
+        # Encrypt Again
+        try:
+            the_file = encrypt_bytes(custom_file, vault_password)
+        except Exception as e:
+            logger.error(f"Vault Encryption Failure! '{e.message}'")
+            return [False, e.message, file_end_loc, file_end_loc]
         progress_signal.emit(33)
-
+        # Calc size
         old_size = file_end_loc-file_start_loc
         new_size = len(the_file)
         new_file_end_loc = file_start_loc + new_size
@@ -248,6 +298,10 @@ class ViewFileWindow(QMainWindow):
 
         res = [True, "", new_file_end_loc, file_end_loc]
         progress_signal.emit(100)
+        if encrypt:
+            logger.info(f"Encrypted {file_name}")
+        else:
+            logger.info(f"Decrypted {file_name}")
         return res
 
     def __add_note(self):
@@ -290,7 +344,6 @@ class ViewFileWindow(QMainWindow):
     def closeEvent(self, event):
         """Override for close window and clean up any remaining items
         """
-        print("ViewFileWindow: Signaled for destruction")
         self.__dialog.reset_inner_items()
         self.__dialog.close()
         self.__dialog.deleteLater()

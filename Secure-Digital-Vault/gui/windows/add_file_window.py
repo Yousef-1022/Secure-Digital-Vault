@@ -183,7 +183,6 @@ class AddFileWindow(QMainWindow):
         """
         self.parent().show()
         self.parent().setFocus()
-        print("Return back to vault view")
         self.exit()
 
     def __import_items(self) -> None:
@@ -294,7 +293,6 @@ class AddFileWindow(QMainWindow):
     def __clean_import(self) -> None:
         """Cleans the widgets modified after the import operation
         """
-        print("CLEAN")
         self.add_progress_bar.resetFormat()
         self.add_progress_bar.stop_progress(False)
         self.__import_is_running.set_value(False)

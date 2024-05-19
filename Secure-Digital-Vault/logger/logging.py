@@ -55,16 +55,17 @@ class Logger:
         if self.error_signal:
             self.error_signal.emit(log_message)
 
-    def attention(self, log_message:str) -> str:
-        """Generates an ATTENTION log but does not add it into the session
+    def attention(self, log_message:str, no_session:bool = False) -> str:
+        """Generates an ATTENTION log but does add it into the session by default unless specified otherwise
 
         Args:
             log_message (str): The ATTENTION log
+            no_session (bool): To indicate if to add into session
 
         Returns:
             str: The ATTENTION log
         """
-        return self.__log("ATTENTION", log_message, is_error=False, no_session=True)
+        return self.__log("ATTENTION", log_message, is_error=False, no_session=no_session)
 
     def __log(self, level:str, log_message:str, is_error:bool=False, no_session=False):
         """Main logging function

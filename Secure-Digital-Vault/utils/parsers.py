@@ -95,6 +95,21 @@ def parse_directory_string(dir_path: str) -> tuple[bool, list[str]]:
     len2 = len(lst)
     return (len1 == len2,lst)
 
+def parse_file_name(name : str) -> tuple[bool,str]:
+    """Checks whether the given name is suitable for a file name, it cannot contain forbidden characters
+
+    Args:
+        name (str): The name
+
+    Returns:
+        tuple[bool,str]: First value indicates if its true or false, second value is for error reason if false.
+    """
+    forbidden_chars = ["<", ">", ":", "\"", "/", "\\", "|", "?", "*", "\0", ".", ","]
+    for char in name:
+        if char in forbidden_chars:
+            return False , f"Name '{name}' contains an invalid character '{char}'"
+    return True, ''
+
 def show_as_windows_directory(dir_path : str) -> str:
     """Parses a valid directory path, e.g, D:/path/to/somewhere/ , and returns a windows format style location
 

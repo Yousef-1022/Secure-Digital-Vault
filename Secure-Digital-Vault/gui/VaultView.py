@@ -259,12 +259,10 @@ class VaultViewWindow(QMainWindow):
         if self.__view_file_window is not None:
             command = variable
             if isinstance(variable, list):
-                print("ViewFileWindow updates header.")
                 command = variable[0]
                 self.update_file_data_in_vault(variable[1])
 
             if command == "Destroy":
-                print("Destroying view file window without updating header.")
                 self.__view_file_window.list_widget.clear()
                 self.__view_file_window.deleteLater()
                 self.__view_file_window.destroy(True,True)
@@ -285,7 +283,6 @@ class VaultViewWindow(QMainWindow):
         """Destroys the add file window via emitted signal. This signal is of type str
         """
         if self.__add_file_window is not None and variable == "Destroy":
-            print("Destroying add file window.")
             self.__add_file_window.tree_widget.clear()
             self.__add_file_window.deleteLater()
             self.__add_file_window.destroy(True,True)
@@ -306,7 +303,6 @@ class VaultViewWindow(QMainWindow):
         """Destroys the get file window via emitted signal. This signal is of type str
         """
         if self.__get_file_window is not None and variable == "Destroy":
-            print("Destroying get file window.")
             self.__get_file_window.list_widget.clear()
             self.__get_file_window.deleteLater()
             self.__get_file_window.destroy(True,True)
@@ -330,7 +326,6 @@ class VaultViewWindow(QMainWindow):
         """Destroys the delete file window and cleans up after it
         """
         if self.__delete_file_window is not None and variable == "Destroy":
-            print("Destroying delete file window.")
             self.__delete_file_window.list_widget.clear()
             self.__delete_file_window.deleteLater()
             self.__delete_file_window.destroy(True,True)
@@ -346,8 +341,7 @@ class VaultViewWindow(QMainWindow):
                 'errors' : self.logger.get_all_error_logs() + self.__vault.get_footer()["error_log"],
                 'normal' : self.logger.get_all_normal_logs() + self.__vault.get_footer()["session_log"]
             }
-            self.__settings_window = SettingsWindow(parent=self, vault_header=self.__vault.get_vault_details(),
-                                                    vault_footer=footer)
+            self.__settings_window = SettingsWindow(parent=self, vault=self.__vault, vault_footer=footer)
             self.__settings_window.signal_for_destruction.connect(self.destory_settings_window)
             self.__settings_window.show()
         self.clearFocus()
@@ -356,7 +350,6 @@ class VaultViewWindow(QMainWindow):
         """Destroys the settings window and cleans up after it
         """
         if self.__settings_window is not None and variable == "Destroy":
-            print("Destroying settings window.")
             self.__settings_window.deleteLater()
             self.__settings_window.destroy(True,True)
             self.__settings_window = None
@@ -430,7 +423,6 @@ class VaultViewWindow(QMainWindow):
         Args:
             refresh_tree (bool, optional): Boolean to indicate whether to refresh the tree. Defaults to False.
         """
-        # TODO: Let another Thread do this
         self.__vault.refresh_header()
         if refresh_tree:
             self.tree_widget.populate_from_header(self.__vault.get_map(), self.tree_widget.current_path, self.__vault.get_vault_path())
@@ -647,17 +639,20 @@ class VaultViewWindow(QMainWindow):
             return None
         return res[1]
 
-    def update_file_data_in_vault(self, file : File):
+    def update_file_data_in_vault(self, file : File, aggressive_update : bool = False):
         """On view file exit, update the header incase it was modified
 
         Args:
             file (File): The file itself
+            aggressive_update (bool) optional: To mark whether to refresh the tree as well
         """
         if not file:
             return
+        if isinstance(file.get_path(), str):
+            file.set_path(self.__vault.get_map()['files'][str(file.get_id())]['path'])
         file.validate_mapped_data(file.get_as_dict())
         self.__vault.update_file_in_vault(file)
-        self.request_header_refresh(refresh_tree=False)
+        self.request_header_refresh(refresh_tree=aggressive_update)
 
     def remove_folder_without_files(self, folder_id : int):
         """Removes the folder from the vault, it shall not contain any files.

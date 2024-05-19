@@ -287,7 +287,6 @@ class CustomTreeWidget(QTreeWidget):
             item (CustomQTreeWidgetItem): The item that was double-clicked.
         """
         if item.text(1) == "Folder" or item.text(1) == "UpOneLevel":
-            print(f"Double clicked a folder, '{item.text(0)}', extension: '{item.text(1)}', type: '{type(item.get_saved_obj())}'")
             if self.vaultview:
                 self.populate_from_header(header_map=self.__header_map, goto_dir=item.get_path(),vault_path=self.__vaultpath)
                 child_path = Vault.determine_directory_path(item.get_path(),self.__header_map["directories"])
@@ -295,8 +294,6 @@ class CustomTreeWidget(QTreeWidget):
             else:
                 self.populate(item.get_path())
                 self.updated_signal.emit(item.get_path())
-        else:
-            print(f"Double clicked: '{item.text(0)}', extension: '{item.text(1)}', type: '{type(item.get_saved_obj())}'")
 
     def mousePressEvent(self, event : QMouseEvent) -> None:
         """

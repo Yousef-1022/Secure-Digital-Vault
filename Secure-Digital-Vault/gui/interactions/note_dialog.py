@@ -58,7 +58,6 @@ class NoteDialog(QDialog):
             self.parent().show_message("Incorrect extension", f"The given extension: '{extension}' is not valid", parent=self)
             return
         if extract_extension(file_location) != extension[1:]:
-            print(file_location,extension,extract_extension(file_location))
             self.parent().show_message("Mistmatch", f"The given extension: '{extension}' does not match what is in the given location: '{file_location}'!", parent=self)
             return
         res = get_file_size(file_location)

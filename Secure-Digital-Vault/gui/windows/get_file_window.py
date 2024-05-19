@@ -228,13 +228,6 @@ class GetFileWindow(QMainWindow):
             res = file_from_vault
             # File must not be empty when decrypting
             if res:
-                # If file is encrypted
-                if password:
-                    try:
-                        res = decrypt_bytes(file_from_vault, password)
-                    except DecryptionFailure as e:
-                        logger.error(f"Password incorrect for {full_file_name}. Error: {e}")
-                        continue
                 # Regular decryption
                 try:
                     # Large File Scenario
@@ -260,8 +253,15 @@ class GetFileWindow(QMainWindow):
                     else:
                         res = decrypt_bytes(res, vault_password)
                 except DecryptionFailure as e:
-                    logger.error(f"Unexpected failure for {full_file_name}. Error: {e}")
+                    logger.error(f"Unexpected Vault Failure for {full_file_name}. Error: {e}. Retry action after reopening the Vault")
                     continue
+                # If file is encrypted
+                if password:
+                    try:
+                        res = decrypt_bytes(res, password)
+                    except DecryptionFailure as e:
+                        logger.warn(f"Password incorrect for {full_file_name}")
+                        continue
             res = append_bytes_into_file(folder_location, res, create_file=True, file_name=full_file_name)
 
             # Extract Note:
@@ -298,7 +298,6 @@ class GetFileWindow(QMainWindow):
     def closeEvent(self, event):
         """Override for close window and clean up any remaining items
         """
-        print("GetFileWindow: Signaled for destruction")
         self.__dialog.reset_inner_items()
         self.__dialog.close()
         self.__dialog.deleteLater()

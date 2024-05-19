@@ -39,11 +39,10 @@ class CustomButton(QPushButton):
             *args: Positional arguments to pass to the action function.
             **kwargs: Keyword arguments to pass to the action function.
         """
-        #self.clicked.connect(lambda: action_function(*args, **kwargs)) PLACEHOLDER
         def action_func_then_exit():
             action_function(*args, **kwargs)
             self.exit()
-        self.clicked.disconnect(self.default_action)  # Disconnect default action
+        self.clicked.disconnect(self.default_action)
         self.clicked.connect(action_func_then_exit)
 
     def set_custom_css(self, css: str) -> None:

@@ -14,7 +14,7 @@ from file_handle.file_io import append_bytes_into_file, add_magic_into_header, h
 from utils.constants import VAULT_CREATION_KEYS , ICON_1, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT, VAULT_BUFFER_LIMIT
 from utils.serialization import serialize_dict, formulate_header, formulate_footer
 from utils.helpers import is_proper_extension, is_location_ok
-from utils.parsers import parse_timestamp_to_string
+from utils.parsers import parse_file_name
 
 from crypto.utils import is_password_strong, xor_magic
 from crypto.encryptors import encrypt_header, encrypt_footer
@@ -166,16 +166,23 @@ class VaultCreateWindow(QMainWindow):
             line = item_widget.findChild(CustomLine)
             if line:
                 item_text = line.get_representing()
-                if item_text == VAULT_CREATION_KEYS[0] and line.text() == "": # Vault Name
-                    errors += f"- {item_text} must not be empty!\n"
-                elif item_text == VAULT_CREATION_KEYS[1] and not is_proper_extension(line.text()):   # Extension
+                # Vault Name
+                if item_text == VAULT_CREATION_KEYS[0]:
+                    if line.text() == "":
+                        errors += f"- {item_text} must not be empty!\n"
+                    elif not (res := parse_file_name(line.text()))[0]:
+                        errors += f"- {res[1]}\n"
+                # Extension
+                elif item_text == VAULT_CREATION_KEYS[1] and not is_proper_extension(line.text()):
                     errors += f"- {item_text} '{line.text()}' is invalid! Valid example: '.vault'.\n"
-                elif item_text == VAULT_CREATION_KEYS[2]: # Save Location
+                # Save Location
+                elif item_text == VAULT_CREATION_KEYS[2]:
                     v = is_location_ok(line.text(), for_file_save=True, for_file_update=False)
                     if not v[0]:
                         errors+=f"- {v[1]}\n"
+                # Password Hint
                 elif item_text == VAULT_CREATION_KEYS[3]:
-                    if line.text() == "": # Password Hint
+                    if line.text() == "":
                         errors+=f"- {item_text} must not be empty!"
                     elif len(line.text()) > 32:
                         errors+=f"- {item_text} must be less than 32 characters!"
