@@ -19,10 +19,8 @@ class Logger:
 
     def __initialize(self, error_signal : pyqtSignal = None, warn_signal : pyqtSignal = None):
         self.__log_session = LogSession()
-        if error_signal:
-            self.error_signal = error_signal
-        if warn_signal:
-            self.warn_signal = warn_signal
+        self.error_signal = error_signal
+        self.warn_signal = warn_signal
 
     def info(self, log_message: str):
         """Sends an INFO log

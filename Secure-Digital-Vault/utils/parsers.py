@@ -49,7 +49,7 @@ def parse_from_string_to_size(size_instr: str) -> int:
     """
     size_instr = size_instr.strip().upper()
     suffixes = {
-        'B': 1,
+        'B ': 1,
         'KB': 1024,
         'MB': 1024 ** 2,
         'GB': 1024 ** 3,

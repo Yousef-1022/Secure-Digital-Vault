@@ -8,3 +8,7 @@ pycryptodome==3.20.0
 
 # Utils
 setuptools==69.5.1
+
+# Tests
+pytest==8.2.1
+pytest-html==4.1.1

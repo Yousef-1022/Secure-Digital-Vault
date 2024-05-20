@@ -278,33 +278,32 @@ def stabilize_after_failed_append(file_path : str, append_error : str, old_size 
     num = append_error[location+len(word):].strip()
     added_bytes = 0
     try:
-        res = int(num)
+        added_bytes = int(num)
     except ValueError:
-        res = 0
+        added_bytes = 0
     prev_error = append_error
-    prev_error += f", Size is: '{res}'"
+    prev_error += f", Size is: '{added_bytes}'"
     added_bytes += already_add_bytes
     after_removal = remove_bytes_from_ending_of_file(file_path, added_bytes) # To remove anything added to the vault
     return f'{prev_error}, removal of appended {added_bytes} bytes makes new vault size: {after_removal} while the old size was: {old_size}'
 
 def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : int,
-                           at_location : int = 0, chunk_size : int = CHUNK_LIMIT, once : bool = True, fd  = None):
+                           at_location : int = 0, chunk_size : int = CHUNK_LIMIT, fd  = None):
     """Adds the given bytes at a certain location of the file. Shifting is involved. Can be used to insert to the beginning of the file.
 
     Args:
         file_path (str): Location of the file
         given_bytes (bytes): The bytes to add
 
-        byte_loss (int): The amount of bytes expected to be lost after adding into a certain index, e.g, 'test123' at_location 2
-        with the addition of 'okay', assuming 'st' is to be replaced, then it would result in the loss of '12' (teokay3) which
-        has the length of 2 and the final result must be 'teokay123'. Therefore, at the firstcall, simply calculate the amount
-        of bytes to stuff - the length of what will it override. Use byte_loss = 0 if you want to overrwrite from specific place.
-        Use byte_loss=len(byte_loss) to add into at_location without any loss and effectively shift the all bytes to the right.
+        byte_loss (int): The amount of bytes expected to be lost after adding into a certain index.
+        - Use byte_loss = 0 if you want to overrwrite from specific place and not push any bytes after at_location argument,
+            e.g, 'test123' at_location 3 with the addition of 'hey', will get the result (teshey3)
+        - Use byte_loss=len(byte_loss) to add into at_location without any loss and effectively shift the all bytes to the right,
+            e.g, 'test123' at_location 4 with the addition of 'okay', will get the result (testokay123)
 
         at_location (int, optional): Index location to start addition from. Defaults to 0.
-        chunk_size (int): Chunk size to have in memory
-        once (bool, optional): Boolean to mark the first iteration. MUST NOT BE USED AS IT IS USED BY RECURSION.
-        fd: FileDescriptor. It is given to reduce file opening overhead. MUST NOT BE USED AS IT IS USED BY RECURSION. (rb+)
+        chunk_size (int): Chunk size to have in memory, if given bytes amount is larger than the CHUNK_LIMIT must be >= given_bytes
+        fd: FileDescriptor. It is given to reduce file opening overhead. (rb+)
 
         Returns:
             FileDescriptor (fd): FileDescriptor, which is to be closed by the caller. (rb+)
@@ -318,31 +317,50 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
             fd.close()
         return None
 
-    original_size = tmp
-    save_location = at_location
-
     if fd:
         file = fd
     else:
         file = open(file_path , "rb+")
 
-    file.seek(at_location+(len(given_bytes) - byte_loss))
+    # Next move
+    move = len(given_bytes) - byte_loss
+    if move < 0:
+        move = 0
+    elif tmp < (at_location + move):
+        move = 0
+
+    # Grab Lost Chunk
+    file.seek(at_location+move)
     lost_chunk = file.read(chunk_size)
     file.seek(at_location)
+
+    # Write the given bytes
     file.write(given_bytes)
-    if once:
-        file.write(lost_chunk[:byte_loss])
     save_location = file.tell()
 
-    if save_location >= original_size:
-        return fd
-    if once:
-        tmp_fd = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk[byte_loss:], byte_loss=byte_loss,
-                               at_location=save_location, chunk_size=chunk_size, once=False, fd=file)
-    else:
-        tmp_fd = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk, byte_loss=byte_loss,
-                               at_location=save_location, chunk_size=chunk_size, once=False, fd=file)
-    return tmp_fd
+    # Determine next byte loss
+    written = len(given_bytes)
+    file.seek(0,2)
+    remaining = file.tell() - save_location
+    file.seek(save_location)
+    next_byte_loss = len(lost_chunk)-written
+
+    # If next byte loss is negative, then it went over the file
+    if next_byte_loss < 0:
+        if file.tell() < tmp:
+            file.write(lost_chunk)
+        elif remaining == 0:
+            file.seek(0,2)
+            file.seek(file.tell()-byte_loss)
+            file.write(lost_chunk)
+        return file
+
+    if (len(lost_chunk) == 0):
+        return file
+
+    file = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk, byte_loss=next_byte_loss,
+                           at_location=save_location, chunk_size=chunk_size, fd=file)
+    return file
 
 def delete_bytes_from_file(file_path : str, bytes_to_delete : int, start_index : int, chunk_size : int = CHUNK_LIMIT, fd = None) -> int:
     """Deletes bytes from the given spot in the file using recursion and inplace overwrite.
