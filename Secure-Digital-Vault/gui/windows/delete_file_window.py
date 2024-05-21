@@ -7,7 +7,7 @@ from classes.file import File
 from logger.logging import Logger
 
 from utils.helpers import is_location_ok
-from utils.constants import ICON_1
+from utils.constants import ICON_11, ICON_16
 from file_handle.file_io import delete_bytes_from_file
 from math import floor, ceil
 
@@ -52,10 +52,10 @@ class DeleteFileWindow(QMainWindow):
             self.list_widget.addItem(element)
 
         # Location label
-        self.delete_button = CustomButton("DELETE",QIcon(ICON_1), "Delete the items from the vault", self.central_widget)
+        self.delete_button = CustomButton("DELETE",QIcon(ICON_11), "Delete the items from the vault", self.central_widget)
         self.delete_button.set_action(self.on_delete_button_clicked)
 
-        self.return_button = CustomButton("Return", QIcon(ICON_1), "Return to VaultView", self)
+        self.return_button = CustomButton("Return", QIcon(ICON_16), "Return to VaultView", self)
         self.return_button.set_action(self.__open_vault_view)
 
         # Progress report
@@ -99,7 +99,6 @@ class DeleteFileWindow(QMainWindow):
                 total_files.set_value(1 + tmp)
         removed_files = []
         total_deleted_bytes = MutableInteger(0)
-        lowest_index = MutableInteger(0)
 
         # Threading
         self.mythread = CustomThread(240 , self.on_delete_button_clicked.__name__)
@@ -107,7 +106,7 @@ class DeleteFileWindow(QMainWindow):
 
 
         self.worker = Worker(self.__process_delete, lst, self.__vault_loc, cur_path, total_files, removed_files,
-                             total_deleted_bytes, lowest_index, self.__delete_is_running)
+                             total_deleted_bytes, self.__delete_is_running)
         self.worker.args += (self.worker.progress, )
 
         self.worker.progress.connect(self.update_delete_progress)
@@ -116,7 +115,6 @@ class DeleteFileWindow(QMainWindow):
 
         def __end_worker_activity(emitted_result):
             self.parent().update_vault_file_size((-1*total_deleted_bytes.get_value()))
-            self.parent().request_data_shift(total_deleted_bytes.get_value(), False, lowest_index.get_value())
             self.mythread.stop_timer(emit_finish=False, emitted_result=emitted_result)
             if not self.__delete_is_running.get_value(): # Caused by Abort
                 self.__delete_is_running.set_value(True) # Will be turned off by the following function
@@ -154,7 +152,7 @@ class DeleteFileWindow(QMainWindow):
             self.delete_progress_bar.setValue(num_to_update_with + current_value)
 
     def __process_delete(self, items : list, vault_loc : str, cur_path : int, total_files : MutableInteger, removed_files : list[str],
-                       total_deleted_bytes : MutableInteger, lowest_index : MutableInteger ,continue_running : MutableBoolean, signal : pyqtSignal, delete_cur_folder : bool = False):
+                       total_deleted_bytes : MutableInteger, continue_running : MutableBoolean, signal : pyqtSignal, delete_cur_folder : bool = False, fd = None):
         """Starts the delete process of the given items in the list
 
         Args:
@@ -164,21 +162,29 @@ class DeleteFileWindow(QMainWindow):
             total_files (MutableInteger) : The TOTAL amount of files including the ones in the subfolders
             removed_files (list[str]) : The names of the removed files
             total_deleted_bytes (MutableInteger) : The TOTAL amount of deleted bytes
-            lowest_index (MutableInteger) : The smallest index to start the shift from
             continue_running (MutableBoolean): The mutuable boolean to abort operation
             signal (pyqtSignal): Signal to emit for the progress bar to increase
             delete_cur_folder (bool): Boolean to indicate whether to delete the current folder during the current iteration. ONLY USED BY RECURSION.
+            fd: FileDescriptor. It is given to reduce file opening overhead during recursion
         """
+        if fd:
+            file = fd
+        else:
+            file = open(vault_loc, "rb+")
 
-        if not continue_running.get_value() or len(items) == 0:
+        if not continue_running.get_value():
+            if not fd:
+                file.close()
             return
         logger = Logger()
 
         # Progress bar details
         if total_files.get_value() > 100:
             emit_every = floor(total_files.get_value() / 100)
-        else:
+        elif total_files.get_value() != 0:
             emit_every = ceil(100 / total_files.get_value())
+        else:
+            emit_every = 0
 
         for obj in items:
             if not continue_running.get_value():
@@ -189,7 +195,7 @@ class DeleteFileWindow(QMainWindow):
                 lst = self.parent().request_files_and_folders_from_vault(belong_to)
                 self.__process_delete(items=lst, vault_loc=vault_loc, cur_path=belong_to, total_files=total_files,
                                       removed_files=removed_files, total_deleted_bytes=total_deleted_bytes,
-                                      continue_running=continue_running, signal=signal, delete_cur_folder=True)
+                                      continue_running=continue_running, signal=signal, delete_cur_folder=True, fd = file)
             # Handle File
             elif isinstance(obj, File):
                 deleted_bytes = 0
@@ -199,44 +205,37 @@ class DeleteFileWindow(QMainWindow):
                 loc_icon_end   = obj.get_metadata()["icon_data_end"]
                 note_id  = obj.get_metadata()["note_id"]
 
-                # Do everything in one file opening
-                file = open(vault_loc, "rb+")
-
                 # 1: Delete Note
                 if note_id != -1:
                     item = self.parent().get_item_class_from_vault(note_id,"V")
                     note_start = item.get_loc_start()
                     note_end   = item.get_loc_end()
-                    if lowest_index.get_value() != -1 and lowest_index.get_value() < note_start:
-                        lowest_index.set_value(note_start)
-
                     bytes_to_delete = note_end-note_start
                     delete_bytes_from_file(file_path=vault_loc, bytes_to_delete=bytes_to_delete,
                                            start_index=note_start, fd=file)
                     deleted_bytes += bytes_to_delete
+                    self.parent().request_data_shift(bytes_to_delete, False, note_start+1)
+                    self.parent().remove_note_from_vault(note_id)
 
-                # 2: Delete File
+                # 2: Delete File (No shift because ICON is right after it)
                 bytes_to_delete = loc_file_end-loc_file_start
                 delete_bytes_from_file(file_path=vault_loc, bytes_to_delete=bytes_to_delete,
                                             start_index=loc_file_start, fd=file)
                 deleted_bytes += bytes_to_delete
-                if lowest_index.get_value() != -1 and lowest_index.get_value() < loc_file_start:
-                    lowest_index.set_value(loc_file_start)
+                self.parent().remove_file_from_vault(obj.get_id())
 
                 # 3: Delete Icon
-                if loc_icon_start != -1 and loc_icon_end != -1:
+                if loc_icon_start < 0 or loc_icon_end < 0:
+                    old_delete = bytes_to_delete
                     bytes_to_delete = loc_icon_end-loc_icon_start
                     delete_bytes_from_file(file_path=vault_loc,bytes_to_delete=bytes_to_delete,
                                                 start_index=loc_icon_start, fd=file)
                     deleted_bytes += bytes_to_delete
-                    if lowest_index.get_value() != -1 and lowest_index.get_value() < loc_icon_start:
-                        lowest_index.set_value(loc_icon_start)
+                    self.parent().request_data_shift(bytes_to_delete+old_delete, False, loc_file_start+1) # Shift both len icon + len file
+                else:
+                    self.parent().request_data_shift(bytes_to_delete, False, loc_file_start+1)
 
-                # 4: Remove file from Vault and Folder
-                file.close()
-                self.parent().remove_file_from_vault(obj.get_id())
-
-                # 5: Update signal, removed_files, total_files, amount of deleted_bytes
+                # 4 Update signal, removed_files, total_files, amount of deleted_bytes
                 signal.emit(emit_every)
                 file_name = f'{obj.get_metadata()["name"]}.{obj.get_metadata()["type"]}'
                 removed_files.append(file_name)
@@ -246,9 +245,13 @@ class DeleteFileWindow(QMainWindow):
                 total_deleted_bytes.set_value(tmp+deleted_bytes)
                 logger.attention(f"Deleted {file_name} from the Vault")
 
-        # 6: The cur_path, which is the current folder does not have anything
+        # 5: The cur_path, which is the current folder does not have anything
         if delete_cur_folder and self.__delete_is_running.get_value():
             self.parent().remove_folder_without_files(cur_path)
+
+        # 6: Close:
+        if not fd:
+            file.close()
 
     def get_objects_from_list_view(self) -> list:
         """Gets all the saved objects from the current list.

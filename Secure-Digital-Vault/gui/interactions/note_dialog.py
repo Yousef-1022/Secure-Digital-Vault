@@ -4,7 +4,7 @@ from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_line import CustomLine
 from gui import VaultView
 
-from utils.constants import ICON_1, NOTE_LIMIT
+from utils.constants import ICON_9, ICON_10, NOTE_LIMIT
 from utils.helpers import is_proper_extension, get_file_size, is_location_ok
 from utils.parsers import parse_size_to_string, show_as_windows_directory
 from utils.extractors import extract_extension
@@ -37,10 +37,10 @@ class NoteDialog(QDialog):
 
         # Import button
         if add_note:
-            self.import_button = CustomButton("Import", QIcon(ICON_1), "Add the given file as a note" ,self)
+            self.import_button = CustomButton("Import", QIcon(ICON_9), "Add the given file as a note" ,self)
             self.import_button.set_action(self.import_note)
         else:
-            self.import_button = CustomButton("Get", QIcon(ICON_1), "Get the note of the given file" ,self)
+            self.import_button = CustomButton("Get", QIcon(ICON_10), "Get the note of the given file" ,self)
             self.import_button.set_action(self.get_note)
 
         # Merge divs

@@ -308,11 +308,14 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
         Returns:
             FileDescriptor (fd): FileDescriptor, which is to be closed by the caller. (rb+)
     """
+    if chunk_size < len(given_bytes):
+        chunk_size = len(given_bytes)
+
     if len(given_bytes) == 0:
         return fd
 
-    tmp = get_file_size(file_path)
-    if tmp <= 0:
+    file_size = get_file_size(file_path)
+    if file_size <= 0:
         if fd:
             fd.close()
         return None
@@ -320,47 +323,47 @@ def override_bytes_in_file(file_path : str , given_bytes : bytes, byte_loss : in
     if fd:
         file = fd
     else:
-        file = open(file_path , "rb+")
+        file = open(file_path, "rb+")
 
-    # Next move
     move = len(given_bytes) - byte_loss
     if move < 0:
         move = 0
-    elif tmp < (at_location + move):
+    elif file_size < (at_location + move):
         move = 0
 
-    # Grab Lost Chunk
-    file.seek(at_location+move)
+    # Read the chunk that will be displaced by the new data
+    file.seek(at_location + move)
     lost_chunk = file.read(chunk_size)
     file.seek(at_location)
 
-    # Write the given bytes
+    # Write the given bytes at the specified location
     file.write(given_bytes)
     save_location = file.tell()
 
-    # Determine next byte loss
+    # Calculate the next byte loss
     written = len(given_bytes)
-    file.seek(0,2)
+    file.seek(0, 2)
     remaining = file.tell() - save_location
     file.seek(save_location)
-    next_byte_loss = len(lost_chunk)-written
+    next_byte_loss = len(lost_chunk) - written
 
-    # If next byte loss is negative, then it went over the file
+    # If next byte loss is negative, handle edge cases
     if next_byte_loss < 0:
-        if file.tell() < tmp:
+        if remaining == 0:
+            to_write = abs(next_byte_loss)
+            file.write(lost_chunk[:to_write])
+            return file
+        if next_byte_loss + save_location >= file_size:
             file.write(lost_chunk)
-        elif remaining == 0:
-            file.seek(0,2)
-            file.seek(file.tell()-byte_loss)
-            file.write(lost_chunk)
+            return file
         return file
 
-    if (len(lost_chunk) == 0):
+    # If lost chunk is empty, return file
+    if len(lost_chunk) == 0:
         return file
 
-    file = override_bytes_in_file(file_path=file_path, given_bytes=lost_chunk, byte_loss=next_byte_loss,
-                           at_location=save_location, chunk_size=chunk_size, fd=file)
-    return file
+    # Recursively handle the next chunk
+    return override_bytes_in_file(file_path, lost_chunk, next_byte_loss, at_location=save_location, chunk_size=chunk_size, fd=file)
 
 def delete_bytes_from_file(file_path : str, bytes_to_delete : int, start_index : int, chunk_size : int = CHUNK_LIMIT, fd = None) -> int:
     """Deletes bytes from the given spot in the file using recursion and inplace overwrite.
@@ -369,7 +372,7 @@ def delete_bytes_from_file(file_path : str, bytes_to_delete : int, start_index :
         file_path (str): The location of the file
         bytes_to_delete (int): Amount of bytes to delete
         start_index (int): The location of the index to start the deletion from
-        chunk_size (int, optional): The Size of the chunk to read during every iteration. Defaults to CHUNK_LIMIT.
+        chunk_size (int, optional): The Size of the chunk to read during every iteration. Defaults to CHUNK_LIMIT and must not be < bytes_to_delete.
         fd: FileDescriptor. It is given to reduce file opening overhead. Must be closed if given by the caller (rb+)
 
     Returns:
@@ -380,38 +383,48 @@ def delete_bytes_from_file(file_path : str, bytes_to_delete : int, start_index :
     else:
         file = open(file_path, "rb+")
 
-    init_chunk_start = start_index + bytes_to_delete
-    init_chunk_end = init_chunk_start + bytes_to_delete
-    next_chunk = get_file_from_vault(vault_path=file_path, starting_byte=init_chunk_start, ending_byte=init_chunk_end,
-                                     chunk_size_to_read=chunk_size, fd=file)
-    if len(next_chunk) < bytes_to_delete:
-        file = override_bytes_in_file(file_path=file_path, given_bytes=next_chunk, byte_loss=0,
-                                      at_location=start_index, chunk_size=chunk_size, fd=file)
-        res = remove_bytes_from_ending_of_file(file_path, bytes_to_delete, fd=file)
-        return res
+    if chunk_size < bytes_to_delete:
+        chunk_size = bytes_to_delete
 
-    # Override what is to delete
-    file = override_bytes_in_file(file_path=file_path, given_bytes=next_chunk, byte_loss=0,
-                                  at_location=start_index, chunk_size=chunk_size, fd=file)
-    # Push
-    override_from = init_chunk_start
-    next_chunk_start = init_chunk_end # Skip initial replacement chunk
-    next_chunk_end = next_chunk_start + chunk_size
+    init_chunk_start = start_index
+    init_chunk_end = start_index+bytes_to_delete
+
+    file.seek(0,2)
+    init_size = file.tell()
+    lst = []
+
+    # Locations of next chunks
+    file.seek(init_chunk_end)
+
     while True:
-        chunk = get_file_from_vault(vault_path=file_path, starting_byte=next_chunk_start, ending_byte=next_chunk_end,
-                                    chunk_size_to_read=chunk_size, fd=file)
-        if not chunk:
+        from_idx = file.tell()
+        to_idx   = file.seek(from_idx+chunk_size)
+        tup = from_idx,to_idx
+        lst.append(tup)
+        if file.tell() >= init_size:
             break
-        file = override_bytes_in_file(file_path=file_path, given_bytes=chunk, byte_loss=0,
-                                      at_location=override_from, chunk_size=chunk_size, fd=file)
-        override_from = override_from + len(chunk)
-        next_chunk_start = next_chunk_end
-        next_chunk_end = next_chunk_end + chunk_size
 
-    res = remove_bytes_from_ending_of_file(file_path, bytes_to_delete, fd=file)
+    # Override
+    file.seek(init_chunk_start)
+    last_saved = init_chunk_start
+    for tup in lst:
+        from_idx = tup[0]
+        to_idx = tup[1]
+        size = to_idx - from_idx
+        file.seek(from_idx)
+        chunk = file.read(size)
+        file.seek(last_saved)
+        file.write(chunk)
+        last_saved = file.tell()
+
+    # Truncate extra
+    file.seek(0, 2)
+    cur = file.tell()
+    file.seek(cur-bytes_to_delete)
+    ans = file.truncate()
     if not fd:
         file.close()
-    return res
+    return ans
 
 def delete_footer_and_hint(file_path : str, footer_start_index : int):
     """Deletes the footer including the MAGIC and the hint associated with the vault

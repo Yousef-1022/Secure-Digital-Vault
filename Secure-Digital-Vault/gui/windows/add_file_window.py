@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QMes
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import pyqtSignal
 
-from utils.constants import ICON_1, ICON_2, ICON_3, ICON_6, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
+from utils.constants import ICON_9, ICON_2, ICON_6, ICON_16,  ICON_3, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
 from utils.extractors import get_files_and_folders_paths, get_item_info, get_amount_of_files_or_folders
 from crypto.encryptors import get_file_and_encrypt_and_add_to_vault
 from crypto.utils import get_checksum
@@ -111,14 +111,14 @@ class AddFileWindow(QMainWindow):
         self.bottom_horziontal_sub_layout1.addWidget(self.where_in_vault)
 
         # Return button and Progress Bar
-        self.return_button = CustomButton("Return", QIcon(ICON_1), "Return to VaultView", self)
+        self.return_button = CustomButton("Return", QIcon(ICON_16), "Return to VaultView", self)
         self.return_button.set_action(self.__open_vault_view)
         self.add_progress_bar = CustomProgressBar(parent=self.centralwidget)
         self.bottom_horziontal_sub_layout2.addWidget(self.return_button)
         self.bottom_horziontal_sub_layout2.addWidget(self.add_progress_bar)
 
         # Import butoon
-        self.import_button = CustomButton("Import", QIcon(ICON_1), "Import Selected Items", self)
+        self.import_button = CustomButton("Import", QIcon(ICON_9), "Import Selected Items", self)
         self.import_button.set_action(self.__import_items)
         self.bottom_horziontal_sub_layout3.addWidget(self.import_button)
 

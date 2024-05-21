@@ -7,7 +7,7 @@ from classes.file import File
 from custom_exceptions.classes_exceptions import DecryptionFailure
 from logger.logging import Logger
 
-from utils.constants import ICON_1, CHUNK_LIMIT
+from utils.constants import ICON_10, CHUNK_LIMIT
 from utils.helpers import get_available_drives, is_location_ok
 from utils.parsers import show_as_windows_directory
 from utils.extractors import get_file_from_vault
@@ -61,7 +61,7 @@ class GetFileWindow(QMainWindow):
         # Location label
         self.address_bar = CustomLine(text="", place_holder_text="Path on disk, e.g, D:/path/to/", parent=self.central_widget)
         self.address_bar.returnPressed.connect(lambda : self.on_extract_button_clicked())
-        self.extract_button = CustomButton("Extract",QIcon(ICON_1), "Extract the items from the vault without deleting them",self.central_widget)
+        self.extract_button = CustomButton("Extract",QIcon(ICON_10), "Extract the items from the vault without deleting them",self.central_widget)
         self.extract_button.set_action(self.on_extract_button_clicked)
 
         # Progress report

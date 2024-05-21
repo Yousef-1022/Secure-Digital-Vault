@@ -11,7 +11,7 @@ from gui.custom_widgets.custom_messagebox import CustomMessageBox
 from logger.logging import Logger
 from file_handle.file_io import append_bytes_into_file, add_magic_into_header, header_padder, add_magic_into_footer
 
-from utils.constants import VAULT_CREATION_KEYS , ICON_1, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT, VAULT_BUFFER_LIMIT
+from utils.constants import VAULT_CREATION_KEYS , ICON_8, ICON_3, ICON_5, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT, VAULT_BUFFER_LIMIT
 from utils.serialization import serialize_dict, formulate_header, formulate_footer
 from utils.helpers import is_proper_extension, is_location_ok
 from utils.parsers import parse_file_name
@@ -32,7 +32,7 @@ class VaultCreateWindow(QMainWindow):
         # QtData
         self.setObjectName("Vault Creator")
         self.setWindowTitle("Vault Creator")
-        self.setWindowIcon(QIcon(ICON_1))
+        self.setWindowIcon(QIcon(ICON_3))
         self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
         self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
         self.resize(800, 600)
@@ -90,14 +90,14 @@ class VaultCreateWindow(QMainWindow):
         self.item_list_widget.setItemWidget(self.password_item, self.password_widget)
 
         # Buttons
-        self.return_button = CustomButton("Return", QIcon(ICON_1), "Return to MainMenu", self)
+        self.return_button = CustomButton("Return", QIcon(ICON_3), "Return to MainMenu", self)
         self.return_button.set_action(self.__open_view_manager)
 
         # Save or Edit button at the bottom
-        self.save_edit_button = CustomButton("Save", QIcon(ICON_1), "Save items", self)
+        self.save_edit_button = CustomButton("Save", QIcon(ICON_5), "Save items", self)
         self.save_edit_button.set_action(self.save_or_edit)
 
-        self.create_button = CustomButton("Create", QIcon(ICON_1), "Create something", self)
+        self.create_button = CustomButton("Create", QIcon(ICON_8), "Create something", self)
         self.create_button.set_action(self.create_vault)
 
         # Horizontal layout for buttons

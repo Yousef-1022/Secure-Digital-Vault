@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QMessageBox, QPushButton, QWidget
 from PyQt6.QtGui import QIcon
-from utils.constants import ICON_1
+from utils.constants import ICON_2
 
 
 class CustomMessageBox(QMessageBox):
@@ -27,7 +27,7 @@ class CustomMessageBox(QMessageBox):
         elif icon_path is not None:
             self.setWindowIcon(QIcon(icon_path))
         else:
-            self.setWindowIcon(QIcon(ICON_1))
+            self.setWindowIcon(QIcon(ICON_2))
 
         if icon_box is not None:
             self.setIcon(icon_box)

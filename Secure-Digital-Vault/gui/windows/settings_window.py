@@ -2,14 +2,14 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QLis
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import pyqtSignal , Qt
 
-from utils.constants import ICON_1, CHUNK_LIMIT
-from file_handle.file_io import rename_file, override_bytes_in_file
+from utils.constants import ICON_5, ICON_7, ICON_8, ICON_12, ICON_14, CHUNK_LIMIT
+from file_handle.file_io import rename_file, override_bytes_in_file, append_bytes_into_file
 from utils.parsers import parse_timestamp_to_string, parse_size_to_string, parse_file_name
 from utils.helpers import is_proper_extension
 from utils.extractors import get_file_from_vault
-from crypto.encryptors import encrypt_bytes
+from crypto.encryptors import encrypt_bytes, generate_password_token
 from crypto.decryptors import decrypt_bytes
-from crypto.utils import is_password_strong, generate_aes_key
+from crypto.utils import is_password_strong, generate_aes_key, to_base64
 
 from custom_exceptions.classes_exceptions import DecryptionFailure
 
@@ -65,15 +65,15 @@ class SettingsWindow(QMainWindow):
         self.input_field_extension.set_representing("New Extension")
 
         # Password to change the vault password
-        self.password_line_old = CustomPasswordLineEdit(placeholder_text="Old Vault Password", icon=QIcon(ICON_1) , parent=self.central_widget)
-        self.password_line_new = CustomPasswordLineEdit(placeholder_text="New Vault Password", icon=QIcon(ICON_1) , parent=self.central_widget)
+        self.password_line_old = CustomPasswordLineEdit(placeholder_text="Old Vault Password", icon=QIcon(ICON_7) , parent=self.central_widget)
+        self.password_line_new = CustomPasswordLineEdit(placeholder_text="New Vault Password", icon=QIcon(ICON_7) , parent=self.central_widget)
         self.input_field_hint = CustomLine("", f"New Vault Hint", self.central_widget)
 
         # Buttons related to vertical_layout1
-        self.save_vault_information_button = CustomButton("Save",QIcon(ICON_1), "Save details to change the vault information",self.central_widget)
+        self.save_vault_information_button = CustomButton("Save",QIcon(ICON_5), "Save details to change the vault information",self.central_widget)
         self.save_vault_information_button.set_action(self.save_details)
 
-        self.execute_change_button = CustomButton("Execute",QIcon(ICON_1), "Execute the changes for the Vault. Keep the passwords empty if you would like to change basic data only.", self.central_widget)
+        self.execute_change_button = CustomButton("Execute",QIcon(ICON_8), "Execute the changes for the Vault. Keep the passwords empty if you would like to change basic data only.", self.central_widget)
         self.execute_change_button.setDisabled(True)
         self.execute_change_button.set_action(self.update_vault)
 
@@ -87,9 +87,9 @@ class SettingsWindow(QMainWindow):
         self.list_data_log.sortItems(Qt.SortOrder.DescendingOrder)
 
         # Buttons related to vertical_layout2
-        self.sort_logs_button = CustomButton("Sort",QIcon(ICON_1), "Sort the logs inside the Vault either in DescendingOrder or AscendingOrder",self.central_widget)
+        self.sort_logs_button = CustomButton("Sort",QIcon(ICON_14), "Sort the logs inside the Vault either in DescendingOrder or AscendingOrder",self.central_widget)
         self.sort_logs_button.set_action(self.sort_logs)
-        self.extract_logs_buttons = CustomButton("Extract",QIcon(ICON_1), "Extract the logs out of the Vault", self.central_widget)
+        self.extract_logs_buttons = CustomButton("Extract",QIcon(ICON_12), "Extract the logs out of the Vault", self.central_widget)
         self.extract_logs_buttons.set_action(self.extract_logs)
 
         # List to show some Vault Information
@@ -283,7 +283,9 @@ class SettingsWindow(QMainWindow):
                 message_box.setWindowTitle("Vault Update Data")
                 message_box.showMessage(f"Failure to rename: {res[1]}")
                 return
-            self.__vault.set_vault_path(res[1])
+            cur_path = self.__vault.get_vault_path()
+            cur_path = f'{cur_path[:cur_path.rfind("/")]}/{res[1]}'
+            self.__vault.set_vault_path(cur_path)
             self.parent().statusBar().showMessage(f"You're viewing the Vault: {self.__vault.get_vault_path()}")
             logger.attention(f"Renamed vault to: {vault_name}")
         if not self.__new_dict['new_password']:
@@ -311,6 +313,7 @@ class SettingsWindow(QMainWindow):
             logger.attention("Successfully changed Vault password and hint!")
             self.execute_change_button.setEnabled(True)
             self.save_vault_information_button.setEnabled(True)
+            self.__token_activity(self.__vault.get_password(), self.__vault.get_vault_path())
             self.mythread.quit()
         self.mythread.timeout_signal.connect(__end_thread_activity)
         self.mythread.finished.connect(self.mythread.deleteLater)
@@ -321,6 +324,24 @@ class SettingsWindow(QMainWindow):
         self.save_vault_information_button.setEnabled(False)
         self.threads.append(self.mythread)
         self.mythread.start()
+
+    def __token_activity(self, password : str, location_for_tokens : str):
+        """Generates the tokens and notifies the user that everything was successful
+
+        Args:
+            password (str): The new passaword
+            location_for_tokens (str): The location for the tokens
+        """
+        location_for_tokens = location_for_tokens[:location_for_tokens.rfind("/")]
+        self.__generate_tokens(password, location_for_tokens)
+        self.message_box = CustomMessageBox(parent=self)
+        self.message_box.setIcon(QMessageBox.Icon.Information)
+        self.message_box.setWindowTitle("Vault Special Tokens")
+        self.message_box.showMessage(f"Please find the new special Vault tokens which can be used as recovery in {location_for_tokens}/tokens.txt")
+        self.message_box.deleteLater()
+        self.progress_bar.setValue(100)
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setValue(0)
 
     def __update_header(self) -> None:
         """Refreshes the header, and modifies the vault itself.
@@ -423,6 +444,7 @@ class SettingsWindow(QMainWindow):
             fd = override_bytes_in_file(file_path=vault.get_vault_path(), given_bytes=encrypted_file, byte_loss=0, at_location=file['loc_start'])
             if fd:
                 fd.close()
+            cntr+=1
 
             # ProgressBar
             if file_amount > 100:
@@ -435,6 +457,19 @@ class SettingsWindow(QMainWindow):
                     progress_signal.emit(emit_every)
                     emitted+=emit_every
         progress_signal.emit(100)
+
+    def __generate_tokens(self, password : str, location_for_tokens : str):
+        """Generates the Vault Recovery tokens
+
+        Args:
+            password (str): The password
+            location_for_tokens (str): The path for the tokens
+        """
+        token1 = to_base64(generate_password_token(password))
+        token2 = to_base64(generate_password_token(password))
+        token3 = to_base64(generate_password_token(password))
+        tokens = f'1: {token1}\n2: {token2}\n3: {token3}\n'.encode()
+        append_bytes_into_file(location_for_tokens, tokens, create_file=True, file_name='tokens.txt')
 
     def update_progress_bar(self, num_to_update_with : int) -> None:
         """Updates the progress bar with the given value

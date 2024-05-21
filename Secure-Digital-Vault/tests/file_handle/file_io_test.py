@@ -107,18 +107,18 @@ def test_override_bytes_in_file_push_exact_chunk():
 
 def test_override_bytes_in_file_push_default_chunk():
     f_name = "test_override_bytes_in_file_push_default_chunk"
-    original_word = b'suresixteenbytes'
+    original_word = b'some__bytes_here'
     with open(f_name, 'wb+') as f:
         f.write(original_word)
         f.seek(0,0)
     to_add = b'ten_bytes!'
-    fd = override_bytes_in_file(file_path=f_name, given_bytes=to_add, byte_loss=len(to_add), at_location=4)
+    fd = override_bytes_in_file(file_path=f_name, given_bytes=to_add, byte_loss=len(to_add), at_location=5)
     if not fd:
         fd = open(f_name, 'rb')
     fd.seek(0,0)
     data = fd.read()
     fd.close()
-    assert data == b'sureten_bytes!sixteenbytes'
+    assert data == b'some_ten_bytes!_bytes_heree'
     os.remove(f_name)
 
 def test_delete_footer_and_hint(sample_vault):
@@ -135,4 +135,4 @@ def test_delete_footer_and_hint(sample_vault):
 
 def test_get_hint(sample_vault):
     vault_path,vault_password,vault_tokens = sample_vault
-    assert get_hint(vault_path) == "TesterHint"
+    assert get_hint(vault_path) == "TestHint"

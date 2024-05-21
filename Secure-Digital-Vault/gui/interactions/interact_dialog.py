@@ -5,7 +5,7 @@ from gui.custom_widgets.custom_messagebox import CustomMessageBox
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_line_password import CustomPasswordLineEdit
 
-from utils.constants import ICON_1
+from utils.constants import ICON_14, ICON_1
 
 class InteractDialog(QDialog):
 
@@ -28,7 +28,7 @@ class InteractDialog(QDialog):
         self.proceed_button.clicked.connect(self.__proceed_with_extraction)
 
         # Skip button
-        self.skip_button = CustomButton("Skip", QIcon(ICON_1), "Skip the given file from extraction" ,self)
+        self.skip_button = CustomButton("Skip", QIcon(ICON_14), "Skip the given file from extraction" ,self)
         self.skip_button.clicked.connect(self.__skip_with_extraction)
 
         # Merge divs

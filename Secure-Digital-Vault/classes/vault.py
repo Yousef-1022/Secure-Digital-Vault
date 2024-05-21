@@ -804,3 +804,26 @@ class Vault:
         the_footer = serialize_dict(self.__footer)
         the_footer = encrypt_footer(self.__password, the_footer)
         return the_footer
+
+    def get_last_related_idx(self) -> int:
+        """Returns the last idx the vault is tracking of
+
+        Returns:
+            int: The last idx the vault is tracking of
+        """
+        biggest_idx = 0
+        for f_id in self.__map["files"].keys():
+            icon_end = self.__map["files"][f_id]["metadata"]["icon_data_end"]
+            file_end = self.__map["files"][f_id]["loc_end"]
+            if icon_end > file_end:
+                if biggest_idx < icon_end:
+                    biggest_idx = icon_end
+            else:
+                if biggest_idx < file_end:
+                    biggest_idx = file_end
+
+        for n_id in self.__map["notes"].keys():
+            note_end = self.__map["notes"][n_id]["loc_end"]
+            if biggest_idx < note_end:
+                biggest_idx = note_end
+        return biggest_idx

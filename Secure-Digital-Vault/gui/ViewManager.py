@@ -7,7 +7,7 @@ from gui.VaultView import VaultViewWindow
 from gui.VaultCreate import VaultCreateWindow
 from gui.custom_widgets.custom_button import CustomButton
 
-from utils.constants import ICON_1, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
+from utils.constants import ICON_6, ICON_1, ICON_9, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
 
 
 class ViewManager(QMainWindow):
@@ -35,7 +35,7 @@ class ViewManager(QMainWindow):
         # QtData
         self.setObjectName("Vault Manager")
         self.setWindowTitle("Vault Manager")
-        self.setWindowIcon(QIcon(ICON_1))
+        self.setWindowIcon(QIcon(ICON_6))
         self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
         self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
         self.resize(800, 600)
@@ -50,14 +50,14 @@ class ViewManager(QMainWindow):
         self.welcome_frame = QFrame(self.centralwidget)
         self.welcome_frame.setObjectName("welcomeFrame")
         self.welcome_layout = QVBoxLayout(self.welcome_frame)
-        self.welcome_label = QLabel("Welcome to Vault Manager", self.welcome_frame)
+        self.welcome_label = QLabel("Welcome to the Secure Digital Vault", self.welcome_frame)
         self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.welcome_layout.addWidget(self.welcome_label)
 
         # Search and Create buttons
         self.search_vault = CustomButton("Find Vault", QIcon(ICON_1), "Search for a Vault on your system", self.centralwidget)
         self.search_vault.set_action(self.__show_VaultSearch)
-        self.create_vault = CustomButton("Create Vault", QIcon(ICON_1), "Create a Vault", self.centralwidget)
+        self.create_vault = CustomButton("Create Vault", QIcon(ICON_9), "Create a Vault", self.centralwidget)
         self.create_vault.set_action(self.__show_VaultCreate)
 
         # Buttons frame

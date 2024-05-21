@@ -2,11 +2,11 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QMes
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import pyqtSignal
 
-from utils.constants import ICON_1, NOTE_LIMIT, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
+from utils.constants import ICON_1, ICON_6, ICON_9, ICON_11, ICON_10, ICON_7, ICON_12, ICON_13, NOTE_LIMIT, MINIMUM_WINDOW_WIDTH, MINIMUM_WINDOW_HEIGHT
 from utils.parsers import parse_directory_string
 from utils.extractors import get_file_from_vault
 from crypto.utils import get_checksum
-from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append, get_hint, add_footer_and_hint
+from file_handle.file_io import append_bytes_into_file, stabilize_after_failed_append, get_hint, add_footer_and_hint, remove_bytes_from_ending_of_file, get_file_size
 
 from classes.vault import Vault
 from classes.note import Note
@@ -76,7 +76,7 @@ class VaultViewWindow(QMainWindow):
         # Interface
         self.setObjectName("VaultViewWindow")
         self.setWindowTitle("Vault View Window")
-        self.setWindowIcon(QIcon(ICON_1))
+        self.setWindowIcon(QIcon(ICON_6))
         self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
         self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
         self.resize(1024, 768)
@@ -101,19 +101,19 @@ class VaultViewWindow(QMainWindow):
 
         # Main Buttons -> upper_horizontal_layout1
         # Add To Vault
-        self.add_to_vault_button = CustomButton("Add",QIcon(ICON_1), "Add file(s) into the vault",self.centralwidget)
+        self.add_to_vault_button = CustomButton("Add",QIcon(ICON_9), "Add file(s) into the vault",self.centralwidget)
         self.add_to_vault_button.set_action(self.open_add_file_window)
 
         # Extract From Vault
-        self.extract_from_vault_button = CustomButton("Extract",QIcon(ICON_1), "Extract file(s) out of the vault. Files are not deleted.",self.centralwidget)
+        self.extract_from_vault_button = CustomButton("Extract",QIcon(ICON_10), "Extract file(s) out of the vault. Files are not deleted.",self.centralwidget)
         self.extract_from_vault_button.set_action(self.open_get_file_window)
 
         # View Metadata
-        self.view_metadata_button = CustomButton("View",QIcon(ICON_1), "View metadata of the currently held item.",self.centralwidget)
+        self.view_metadata_button = CustomButton("View",QIcon(ICON_7), "View metadata of the currently held item.",self.centralwidget)
         self.view_metadata_button.set_action(lambda : self.open_view_window(self.tree_widget.currentItem()))
 
         # Delete from Vault
-        self.delete_from_vault_button = CustomButton("Delete",QIcon(ICON_1), "Delete file(s) in the vault",self.centralwidget)
+        self.delete_from_vault_button = CustomButton("Delete",QIcon(ICON_11), "Delete file(s) in the vault",self.centralwidget)
         self.delete_from_vault_button.set_action(lambda : self.open_delete_window(self.tree_widget.getSelectedItems()))
 
         # Find in vault
@@ -124,7 +124,7 @@ class VaultViewWindow(QMainWindow):
         self.address_bar = CustomLine(text="/", place_holder_text="Path in the vault, e.g, /myFolder/someFolder/", parent=self.centralwidget)
         self.address_bar.returnPressed.connect(lambda : self.on_insert_button_clicked(self.address_bar.text()))
 
-        self.address_bar_button = CustomButton("Insert", QIcon(ICON_1), "Confirm the path to navigate", self.centralwidget)
+        self.address_bar_button = CustomButton("Insert", QIcon(ICON_12), "Confirm the path to navigate", self.centralwidget)
         self.address_bar_button.set_action(lambda : self.on_insert_button_clicked(self.address_bar.text()))
 
         # Merging Upper Layouts and adding them into the main layout
@@ -151,7 +151,7 @@ class VaultViewWindow(QMainWindow):
 
         # Status bar includes the CustomButton
         self.setStatusBar(self.statusBar())
-        self.settings_button = CustomButton("Settings", QIcon(ICON_1), "Check the Vault Settings", self)
+        self.settings_button = CustomButton("Settings", QIcon(ICON_13), "Check the Vault Settings", self)
         self.settings_button.set_action(self.open_settings_window)
 
         # Must assign a Widget to the StatusBar, and this Widget must be in a container for better space management
@@ -691,6 +691,12 @@ class VaultViewWindow(QMainWindow):
     def closeEvent(self, event):
         """Override for close window for safe shutdown.
         """
+        # Clean any extra size:
+        last_track = self.__vault.get_last_related_idx()
+        cur_size = get_file_size(self.__vault.get_vault_path())
+        if last_track < cur_size:
+            remove_bytes_from_ending_of_file(self.__vault.get_vault_path(), cur_size-last_track-1)
+
         errors = self.logger.get_all_error_logs()
         for error in errors:
             self.__vault.add_error_log_to_footer(error)

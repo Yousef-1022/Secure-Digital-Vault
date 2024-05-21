@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QMainWindow, 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QIcon
 
-from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
+from utils.constants import ICON_1, ICON_2, ICON_3, ICON_4, ICON_6, ICON_7, ICON_16, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
 from utils.helpers import is_proper_extension
 from crypto.decryptors import decrypt_header, decrypt_footer, resolve_token
 from crypto.utils import from_base64
@@ -132,7 +132,7 @@ class VaultSearchWindow(QMainWindow):
         self.tree_widget.clicked_file_signal.connect(treeWidgetModifyLocationAndExtension)
 
         # Return button and Progress Bar
-        self.return_button = CustomButton("Return", QIcon(ICON_1), "Return to MainMenu", self)
+        self.return_button = CustomButton("Return", QIcon(ICON_16), "Return to MainMenu", self)
         self.return_button.set_action(self.__open_view_manager)
         self.decrypt_progress_bar = CustomProgressBar(parent=self.centralwidget)
         self.bottom_horziontal_sub_layout3.addWidget(self.return_button)
@@ -240,6 +240,7 @@ class VaultSearchWindow(QMainWindow):
         self.tree_widget.populate(current_drive)
         self.password_line_edit.get_passwordLine().setText("")
         self.vault_location_line.setText("")
+        self.token_checkbox.setChecked(False)
 
     # Button import handle results
     def on_import_button_clicked(self) -> None:

@@ -6,7 +6,7 @@ from classes.file import File
 from classes.directory import Directory
 from logger.logging import Logger
 
-from utils.constants import ICON_1, CHUNK_LIMIT
+from utils.constants import ICON_17, ICON_11, ICON_9, ICON_10 ,ICON_4, CHUNK_LIMIT
 from utils.parsers import parse_timestamp_to_string, parse_size_to_string
 from utils.extractors import get_file_from_vault
 from file_handle.file_io import override_bytes_in_file
@@ -46,9 +46,9 @@ class ViewFileWindow(QMainWindow):
 
         # Add buttons
         self.button_layout = QHBoxLayout()
-        self.encrypt_button = CustomButton("Encrypt", QIcon(ICON_1), "Encrypt file", self.central_widget)
+        self.encrypt_button = CustomButton("Encrypt", QIcon(ICON_17), "Encrypt file", self.central_widget)
         self.encrypt_button.set_action(self.__encrypt_or_decrypt_file, True)
-        self.decrypt_button = CustomButton("Decrypt", QIcon(ICON_1), "Decrypt file", self.central_widget)
+        self.decrypt_button = CustomButton("Decrypt", QIcon(ICON_4), "Decrypt file", self.central_widget)
         self.decrypt_button.set_action(self.__encrypt_or_decrypt_file, False)
 
         # Check for FileSize
@@ -59,11 +59,11 @@ class ViewFileWindow(QMainWindow):
                 self.decrypt_button.context_box_text = f"This File cannot be decrypted because its over {parse_size_to_string(CHUNK_LIMIT)}"
                 self.__disable_encryption_and_decryption = True
 
-        self.remove_note_button = CustomButton("Remove Note", QIcon(ICON_1), "Remove note note from file", self.central_widget)
+        self.remove_note_button = CustomButton("Remove Note", QIcon(ICON_11), "Remove note note from file", self.central_widget)
 
-        self.add_note_button = CustomButton("Add Note", QIcon(ICON_1), "Add note to file", self.central_widget)
+        self.add_note_button = CustomButton("Add Note", QIcon(ICON_9), "Add note to file", self.central_widget)
         self.add_note_button.set_action(self.__add_note)
-        self.get_note_button = CustomButton("Get Note", QIcon(ICON_1), "Get the Note", self.central_widget)
+        self.get_note_button = CustomButton("Get Note", QIcon(ICON_10), "Get the Note", self.central_widget)
         self.get_note_button.set_action(self.__get_note)
 
         # List widget to display items
