@@ -2,7 +2,7 @@ Developer Name: Yousef Al-Akhali
 Email: yousefgalal.alakhali@gmail.com
 Neptun Code: AYTPDH
 
-Thesis Name: Secure Digital Vault Application with Advanced Encryption
+Thesis Name: Secure Digital Vault
 
 Approved Proposal:
 The thesis centers on the creation of a secure digital vault application with the aim of preserving critical data in an advanced, robust security environment while maintaining user friendly accessibility. It can be used by professionals and general users.

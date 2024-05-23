@@ -1,0 +1,21 @@
+<RCC>
+<qresource prefix="/">
+<file>assets/icon1.png</file>
+<file>assets/icon2.png</file>
+<file>assets/icon3.png</file>
+<file>assets/icon4.png</file>
+<file>assets/icon5.png</file>
+<file>assets/icon6.png</file>
+<file>assets/icon7.png</file>
+<file>assets/icon8.png</file>
+<file>assets/icon9.png</file>
+<file>assets/icon10.png</file>
+<file>assets/icon11.png</file>
+<file>assets/icon12.png</file>
+<file>assets/icon13.png</file>
+<file>assets/icon14.png</file>
+<file>assets/icon15.png</file>
+<file>assets/icon16.png</file>
+<file>assets/icon17.png</file>
+</qresource>
+</RCC>

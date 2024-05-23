@@ -120,8 +120,8 @@ class CustomThread(QThread):
 
     def exit(self) -> None:
         try:
+            if not self.timer_finished:
+                self.stop_timer(emit_finish=False)
             super().exit()
         except RuntimeError:
             pass # wrapped C/C++ object of type CustomThread has been deleted
-        if not self.timer_finished:
-            self.stop_timer(emit_finish=False)

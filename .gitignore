@@ -6,9 +6,3 @@ __pycache__/
 # Environment-related
 venv/
 .vscode/
-
-# Custom Scripts
-*.ps1
-
-# Extra Files
-info.txt
