@@ -7,12 +7,11 @@ from gui.VaultView import VaultViewWindow
 from gui.VaultCreate import VaultCreateWindow
 from gui.custom_widgets.custom_button import CustomButton
 
-from utils.constants import ICON_6, ICON_1, ICON_9, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
+from utils.constants import ICON_6, MINIMUM_WINDOW_HEIGHT, MINIMUM_WINDOW_WIDTH
 
 
 class ViewManager(QMainWindow):
-    """Used to manage the initial point of the Vault
-    """
+    """Used to manage the initial point of the Vault"""
 
     signal_to_open_window = pyqtSignal(str)
 
@@ -37,42 +36,96 @@ class ViewManager(QMainWindow):
         self.setWindowTitle("Vault Manager")
         self.setWindowIcon(QIcon(ICON_6))
         self.setMinimumWidth(MINIMUM_WINDOW_WIDTH)
+        self.setMaximumWidth(MINIMUM_WINDOW_WIDTH)
         self.setMinimumHeight(MINIMUM_WINDOW_HEIGHT)
-        self.resize(800, 600)
+        self.setMaximumHeight(MINIMUM_WINDOW_HEIGHT)
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralWidget")
 
         # Main Layout
         self.main_layout = QVBoxLayout(self.centralwidget)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins from main layout
+
 
         # Welcome Frame
         self.welcome_frame = QFrame(self.centralwidget)
         self.welcome_frame.setObjectName("welcomeFrame")
         self.welcome_layout = QVBoxLayout(self.welcome_frame)
+        self.welcome_layout.setContentsMargins(0, 55, 0, 0)
         self.welcome_label = QLabel("Welcome to the Secure Digital Vault", self.welcome_frame)
-        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         self.welcome_layout.addWidget(self.welcome_label)
 
         # Search and Create buttons
-        self.search_vault = CustomButton("Find Vault", QIcon(ICON_1), "Search for a Vault on your system", self.centralwidget)
+        self.search_vault = CustomButton("Find Vault", QIcon(), "Search for a Vault on your system", self.centralwidget)
         self.search_vault.set_action(self.__show_VaultSearch)
-        self.create_vault = CustomButton("Create Vault", QIcon(ICON_9), "Create a Vault", self.centralwidget)
+        self.search_vault.customContextMenuRequested.disconnect()
+        self.create_vault = CustomButton("Create Vault", QIcon(), "Create a Vault", self.centralwidget)
         self.create_vault.set_action(self.__show_VaultCreate)
+        self.create_vault.customContextMenuRequested.disconnect()
 
         # Buttons frame
         self.buttons_frame = QFrame(self.centralwidget)
         self.buttons_frame.setObjectName("buttonsFrame")
         self.buttons_layout = QHBoxLayout(self.buttons_frame)
+        self.buttons_layout.setContentsMargins(0, 0, 0, 0)
         self.buttons_layout.addWidget(self.search_vault)
         self.buttons_layout.addWidget(self.create_vault)
 
-        # Add into main div
-        self.main_layout.addWidget(self.welcome_frame)
+        # Add into main layout
+        self.main_layout.addWidget(self.welcome_frame, alignment=Qt.AlignmentFlag.AlignTop)
         self.main_layout.addWidget(self.buttons_frame)
 
         # Additional information labels can be added here
         self.setCentralWidget(self.centralwidget)
+
+        # CSS
+        self.setStyleSheet("""
+            ViewManager {
+                background-image: url(:/assets/background.png);
+                background-repeat: no-repeat;
+                background-position: top;
+                background-attachment: fixed;
+                background-color: white;
+            }
+        """)
+        self.welcome_label.setStyleSheet("""
+            font-family: Times New Roman;
+            font-weight: bold;
+            font-size: 15px;
+            color: black;
+        """)
+
+        self.search_vault.setStyleSheet("""
+            background-image: url(:/assets/icon18.png);
+            background-repeat: no-repeat;
+            background-color: transparent;
+            border: none;
+            text-align: bottom;
+            vertical-align: bottom;
+            font-family: Times New Roman;
+            font-weight: bold;
+            font-size: 15px;
+            min-width: 150px;
+            min-height: 150px;
+            padding-top: 10px;
+        """)
+
+        self.create_vault.setStyleSheet("""
+            background-image: url(:/assets/icon19.png);
+            background-repeat: no-repeat;
+            background-color: transparent;
+            border: none;
+            text-align: bottom;
+            vertical-align: bottom;
+            font-family: Times New Roman;
+            font-weight: bold;
+            font-size: 15px;
+            min-width: 150px;
+            min-height: 150px;
+            padding-top: 10px;
+        """)
 
     def set_special_h(self , data : bytes):
         self.__data_h = data

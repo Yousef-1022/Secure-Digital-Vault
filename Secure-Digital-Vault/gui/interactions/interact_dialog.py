@@ -5,7 +5,7 @@ from gui.custom_widgets.custom_messagebox import CustomMessageBox
 from gui.custom_widgets.custom_button import CustomButton
 from gui.custom_widgets.custom_line_password import CustomPasswordLineEdit
 
-from utils.constants import ICON_14, ICON_1
+from utils.constants import ICON_14, ICON_8
 
 class InteractDialog(QDialog):
 
@@ -24,7 +24,7 @@ class InteractDialog(QDialog):
         self.password_line_edit = CustomPasswordLineEdit(placeholder_text="File password", parent=self)
 
         # Proceed button
-        self.proceed_button = CustomButton("Proceed", QIcon(ICON_1), "Continue with the extraction by giving the password" ,self)
+        self.proceed_button = CustomButton("Proceed", QIcon(ICON_8), "Continue with the extraction by giving the password" ,self)
         self.proceed_button.clicked.connect(self.__proceed_with_extraction)
 
         # Skip button

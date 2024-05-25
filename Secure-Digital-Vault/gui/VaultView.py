@@ -694,7 +694,7 @@ class VaultViewWindow(QMainWindow):
         # Clean any extra size:
         last_track = self.__vault.get_last_related_idx()
         cur_size = get_file_size(self.__vault.get_vault_path())
-        if last_track < cur_size:
+        if last_track != 0 and last_track< cur_size:
             remove_bytes_from_ending_of_file(self.__vault.get_vault_path(), cur_size-last_track-1)
 
         errors = self.logger.get_all_error_logs()

@@ -1,7 +1,6 @@
 from PyQt6.QtCore import QDir, QFile
 from custom_exceptions.classes_exceptions import FileError
 
-from utils.extractors import get_file_from_vault
 from crypto.utils import xor_magic
 from utils.helpers import get_file_size, is_location_ok
 from utils.constants import MAGIC_HEADER_START, MAGIC_HEADER_END, MAGIC_HEADER_PAD, CHUNK_LIMIT, MAGIC_LOG_START, MAGIC_LOG_END

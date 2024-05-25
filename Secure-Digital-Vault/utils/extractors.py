@@ -176,7 +176,7 @@ def extract_default_icon(extension : str) -> QIcon:
     place_holder_exists = False
     tmp_name = f'tmp{extension}'
     try:
-        with open(tmp_name, "x") as f:
+        with open(tmp_name, "xb"):
             pass
     except FileExistsError:
         place_holder_exists = True
