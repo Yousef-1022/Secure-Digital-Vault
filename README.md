@@ -1,10 +1,8 @@
 Developer Name: Yousef Al-Akhali
 Email: yousefgalal.alakhali@gmail.com
-Neptun Code: AYTPDH
+Neptun Code: AYTPDH<br>
+Thesis Name: Secure Digital Vault<br>
 
-Thesis Name: Secure Digital Vault
-
-Approved Proposal:
 The thesis centers on the creation of a secure digital vault application with the aim of preserving critical data in an advanced, robust security environment while maintaining user friendly accessibility. It can be used by professionals and general users.
 
 A file explorer like interface will take place in order to distinguish it from other solutions, as this is not any type of regular plain vault with secure data inside. A variety of features are included to enhance user functionality and vault usability. For example, the possibility of individual file encryption within the vault, the ability to investigate the log trail for changes related to the vault, and a file searcher within the application interface itself.
