@@ -1,5 +1,5 @@
-Developer Name: Yousef Al-Akhali
-Email: yousefgalal.alakhali@gmail.com
+Developer Name: Yousef Al-Akhali<br>
+Email: yousefgalal.alakhali@gmail.com<br>
 Neptun Code: AYTPDH<br>
 Thesis Name: Secure Digital Vault<br>
 
